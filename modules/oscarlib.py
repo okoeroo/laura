@@ -320,6 +320,15 @@ def dns_resolve_r_type(fqdn, r_type):
                 #       to infinity
                 tup['cname_follow'] = dns_resolve_r_type(tup['value'], r_type)
 
+            elif r_type == 'A':
+                ptr_try = ".".join([tup['value'].split(".")[3],
+                                    tup['value'].split(".")[2],
+                                    tup['value'].split(".")[1],
+                                    tup['value'].split(".")[0],
+                                    "in-addr.arpa."
+                                    ])
+                tup['ptr_follow'] = dns_resolve_r_type(ptr_try, 'PTR')
+
             elif r_type == 'MX':
                 if not len(str(r_data).split()) == 2:
                     tup['error'] = "malformed MX rr data"
