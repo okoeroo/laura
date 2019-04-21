@@ -10,12 +10,14 @@ import pprint
 
 from ipwhois.net import Net
 from ipwhois.asn import IPASN
+from ipwhois.asn import ASNOrigin
 
 from urllib.request import urlopen
 import requests
 import requests_cache
 import threading
 
+from netaddr import *
 
 import multiprocessing
 import queue
@@ -33,6 +35,17 @@ def get_asn(ip_address):
 
     return results
 
+def get_asn_origin(asnumber):
+# net = Net('2001:43f8:7b0::')
+# obj = ASNOrigin(net)
+# results = obj.lookup(asn='AS37578')
+# pprint(results)
+
+    net = Net('0.0.0.0')
+    obj = ASNOrigin(net)
+#    obj = ASNOrigin()
+    results = obj.lookup(asn=asnumber)
+    return results
 
 class my_threading(object):
     def __init__(self, func, list_of_work):
@@ -325,12 +338,10 @@ def dns_resolve_r_type(fqdn, r_type):
         for r_data in answer.rrset:
             tup = {}
 
+            # The resulted value from the query.
             tup['value'] = str(r_data)
-            #if str(r_data)[-1:] == '.':
-            #    tup['value_no_dot'] = str(r_data)[:-1]
-            #else:
-            #    tup['value_no_dot'] = str(r_data)
 
+            # Depending upon the type, let's dive deeper
             if r_type == 'CNAME':
                 # HACK: Recursing CNAME could become dangerous when this goes
                 #       to infinity
@@ -341,18 +352,16 @@ def dns_resolve_r_type(fqdn, r_type):
                 if asn is not None:
                     tup['asn'] = asn
 
+                # Reverse lookup
+                tup['ptr_follow'] = dns_resolve_r_type(IPAddress(tup['value']).reverse_dns, 'PTR')
+
             elif r_type == 'A':
                 asn = get_asn(tup['value'])
                 if asn is not None:
                     tup['asn'] = asn
 
-                ptr_try = ".".join([tup['value'].split(".")[3],
-                                    tup['value'].split(".")[2],
-                                    tup['value'].split(".")[1],
-                                    tup['value'].split(".")[0],
-                                    "in-addr.arpa."
-                                    ])
-                tup['ptr_follow'] = dns_resolve_r_type(ptr_try, 'PTR')
+                # Reverse lookup
+                tup['ptr_follow'] = dns_resolve_r_type(IPAddress(tup['value']).reverse_dns, 'PTR')
 
             elif r_type == 'MX':
                 if not len(str(r_data).split()) == 2:

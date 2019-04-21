@@ -758,6 +758,10 @@ if not args.input:
     print("No input")
     sys.exit(1)
 
+#r = oscarlib.get_asn_origin('AS286')
+#pprint.pprint(r, indent=4)
+#sys.exit(1)
+
 domains_to_search = oscarlib.load_file_into_array(args.input)
 
 print("Scan started for:")
