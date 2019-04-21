@@ -8,6 +8,9 @@ import os
 import json
 import pprint
 
+from ipwhois.net import Net
+from ipwhois.asn import IPASN
+
 from urllib.request import urlopen
 import requests
 import requests_cache
@@ -16,6 +19,19 @@ import threading
 
 import multiprocessing
 import queue
+
+
+# IP Address input is a string with an IPv4 or IPv6 address
+def get_asn(ip_address):
+    if ip_address is None:
+        return None
+
+    net = Net(ip_address)
+    obj = IPASN(net)
+    asn_meths = ['whois', 'http']
+    results = obj.lookup(asn_methods=asn_meths)
+
+    return results
 
 
 class my_threading(object):
@@ -320,7 +336,16 @@ def dns_resolve_r_type(fqdn, r_type):
                 #       to infinity
                 tup['cname_follow'] = dns_resolve_r_type(tup['value'], r_type)
 
+            elif r_type == 'AAAA':
+                asn = get_asn(tup['value'])
+                if asn is not None:
+                    tup['asn'] = asn
+
             elif r_type == 'A':
+                asn = get_asn(tup['value'])
+                if asn is not None:
+                    tup['asn'] = asn
+
                 ptr_try = ".".join([tup['value'].split(".")[3],
                                     tup['value'].split(".")[2],
                                     tup['value'].split(".")[1],
