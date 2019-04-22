@@ -31,6 +31,7 @@ if __name__ == "__main__":
     sqlite_conn.execute('''CREATE TABLE ipv4country (range_start TEXT, range_start_bits BLOB, range_end TEXT, range_end_bits BLOB, country_code TEXT)''')
     sqlite_conn.execute('''CREATE TABLE ipv6country (range_start TEXT, range_start_bits BLOB, range_end TEXT, range_end_bits BLOB, country_code TEXT)''')
 
+
     print("Read: ip2asn-combined.tsv")
     with open('ip2asn-combined.tsv') as csv_file:
         csv_reader = csv.reader(csv_file, delimiter='\t')
@@ -54,6 +55,11 @@ if __name__ == "__main__":
 
     print("Process: ip2asn-combined.tsv")
     sqlite_cur.execute("commit")
+
+    print("Creating indexes")
+    sqlite_conn.execute('''CREATE INDEX i_as_number ON ip2asn (AS_number)''')
+    sqlite_conn.execute('''CREATE INDEX i_range_end_bits ON ip2asn (range_end_bits)''')
+    sqlite_conn.execute('''CREATE INDEX i_range_begin_bits ON ip2asn (range_begin_bits)''')
 
 #    sqlite_cur.execute("select range_start_bits from ip2asn")
 #    print("select range_start_bits from ip2asn")

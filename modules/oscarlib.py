@@ -8,6 +8,7 @@ import os
 import json
 import pprint
 
+import sqlite3
 import requests
 import requests_cache
 import threading
@@ -21,29 +22,12 @@ import csv
 
 
 class ASNLookUp(object):
-    def __init__(self, ip2asndb='ip2asn-combined.tsv'):
+    def __init__(self):
         PATH = os.path.dirname(os.path.realpath(__file__)) + '/'
+        DB_PATH = PATH + 'bgp_lookup.db'
 
-        self.ip2asn_db = PATH + ip2asndb
-        self.asn2ip = []
-
-        self.initialize_asn_databases()
-
-    def initialize_asn_databases(self):
-        print("Read: ip2asn-combined.tsv")
-        with open(self.ip2asn_db) as csv_file:
-            csv_reader = csv.reader(csv_file, delimiter='\t')
-            for row in csv_reader:
-                r = {}
-                r['range_start']     = row[0]
-                r['range_start_obj'] = IPAddress(row[0])
-                r['range_end']       = row[1]
-                r['range_end_obj']   = IPAddress(row[1])
-                r['as_number']       = int(row[2])
-                r['as_country']      = row[3]
-                r['as_description']  = row[4]
-
-                self.asn2ip.append(r)
+        self.sqlite_conn = sqlite3.connect(DB_PATH)
+        self.sqlite_cur  = self.sqlite_conn.cursor()
 
     def asn_serialize(self, rec):
         r = {}
@@ -61,14 +45,22 @@ class ASNLookUp(object):
         return r
 
     def asn_get(self, ipaddress):
-        ip = IPAddress(ipaddress)
+        self.sqlite_cur.execute("SELECT range_start, range_end, AS_number, country_code, AS_description " +
+                                   "  FROM ip2asn " +
+                                   " WHERE range_start_bits <= :myip AND range_end_bits >= :myip AND AS_number <> 0",
+                                   {"myip":IPAddress(ipaddress).packed})
 
-        for r in self.asn2ip:
-            if r['range_start_obj'] <= ip and \
-                    r['range_end_obj'] >= ip and \
-                    r['as_description'] != "Not routed":
-                print(ip, r)
-                return self.asn_serialize(r)
+        l_per_as = []
+        for row in self.sqlite_cur:
+            r = {}
+            r['range_start']    = row[0]
+            r['range_end']      = row[1]
+            r['as_number']      = row[2]
+            r['as_country']     = row[3]
+            r['as_description'] = row[4]
+            l_per_as.append(r)
+
+        return l_per_as
 
     def asn_origin(self, asnumber):
         if isinstance(asnumber, str):
@@ -83,13 +75,20 @@ class ASNLookUp(object):
 
         # Search in list
         l_per_as = []
-        for r in self.asn2ip:
-            if r['as_number'] == i_asnum:
-                l_per_as.append(r)
+        self.sqlite_cur.execute("SELECT range_start, range_end, AS_number, country_code, AS_description " +
+                                   "  FROM ip2asn " +
+                                   " WHERE AS_number = :asn",
+                                   {"asn":i_asnum})
+        for row in self.sqlite_cur:
+            r = {}
+            r['range_start']    = row[0]
+            r['range_end']      = row[1]
+            r['as_number']      = row[2]
+            r['as_country']     = row[3]
+            r['as_description'] = row[4]
+            l_per_as.append(r)
 
         return l_per_as
-
-
 
 class my_threading(object):
     def __init__(self, func, list_of_work):
