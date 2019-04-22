@@ -29,21 +29,6 @@ class ASNLookUp(object):
         self.sqlite_conn = sqlite3.connect(DB_PATH)
         self.sqlite_cur  = self.sqlite_conn.cursor()
 
-    def asn_serialize(self, rec):
-        r = {}
-        r['range_start']     = rec['range_start']
-        r['range_end']       = rec['range_end']
-        r['cidrs']           = []
-
-        ipr = IPRange(rec['range_start'], rec['range_end'])
-        for c in ipr.cidrs():
-            r['cidrs'].append(str(c))
-
-        r['as_number']       = rec['as_number']
-        r['as_country']      = rec['as_country']
-        r['as_description']  = rec['as_description']
-        return r
-
     def asn_get(self, ipaddress):
         self.sqlite_cur.execute("SELECT range_start, range_end, AS_number, country_code, AS_description " +
                                    "  FROM ip2asn " +
@@ -55,6 +40,16 @@ class ASNLookUp(object):
             r = {}
             r['range_start']    = row[0]
             r['range_end']      = row[1]
+
+            r['cidrs']          = []
+
+            ipr = IPRange(r['range_start'], r['range_end'])
+            for c in ipr.cidrs():
+                # Need to check, if the IPAddress is part of the CIDR
+                net = IPNetwork(str(c))
+                if IPAddress(ipaddress) in net:
+                    r['cidrs'].append(str(c))
+
             r['as_number']      = row[2]
             r['as_country']     = row[3]
             r['as_description'] = row[4]
@@ -387,7 +382,7 @@ def dns_resolve_r_type(fqdn, r_type):
                 tup['cname_follow'] = dns_resolve_r_type(tup['value'], r_type)
 
             elif r_type == 'AAAA':
-                asn = asn_get(tup['value'])
+                asn = ASNLookUp().asn_get(tup['value'])
                 if asn is not None:
                     tup['asn'] = asn
 
@@ -395,7 +390,7 @@ def dns_resolve_r_type(fqdn, r_type):
                 tup['ptr_follow'] = dns_resolve_r_type(IPAddress(tup['value']).reverse_dns, 'PTR')
 
             elif r_type == 'A':
-                asn = asn_get(tup['value'])
+                asn = ASNLookUp().asn_get(tup['value'])
                 if asn is not None:
                     tup['asn'] = asn
 
