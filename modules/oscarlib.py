@@ -22,18 +22,78 @@ from netaddr import *
 import multiprocessing
 import queue
 
+import csv
 
-# IP Address input is a string with an IPv4 or IPv6 address
-def get_asn(ip_address):
-    if ip_address is None:
-        return None
 
-    net = Net(ip_address)
-    obj = IPASN(net)
-    asn_meths = ['whois', 'http']
-    results = obj.lookup(asn_methods=asn_meths)
+class ASNLookUp(object):
+    def __init__(self, ip2asndb='ip2asn-combined.tsv'):
+        PATH = os.path.dirname(os.path.realpath(__file__)) + '/'
 
-    return results
+        self.ip2asn_db = PATH + ip2asndb
+        self.asn2ip = []
+
+        self.initialize_asn_databases()
+
+    def initialize_asn_databases(self):
+        print("Read: ip2asn-combined.tsv")
+        with open(self.ip2asn_db) as csv_file:
+            csv_reader = csv.reader(csv_file, delimiter='\t')
+            for row in csv_reader:
+                r = {}
+                r['range_start']     = row[0]
+                r['range_start_obj'] = IPAddress(row[0])
+                r['range_end']       = row[1]
+                r['range_end_obj']   = IPAddress(row[1])
+                r['as_number']       = int(row[2])
+                r['as_country']      = row[3]
+                r['as_description']  = row[4]
+
+                self.asn2ip.append(r)
+
+    def asn_serialize(self, rec):
+        r = {}
+        r['range_start']     = rec['range_start']
+        r['range_end']       = rec['range_end']
+        r['cidrs']           = []
+
+        ipr = IPRange(rec['range_start'], rec['range_end'])
+        for c in ipr.cidrs():
+            r['cidrs'].append(str(c))
+
+        r['as_number']       = rec['as_number']
+        r['as_country']      = rec['as_country']
+        r['as_description']  = rec['as_description']
+        return r
+
+    def asn_get(self, ipaddress):
+        ip = IPAddress(ipaddress)
+
+        for r in self.asn2ip:
+            if r['range_start_obj'] <= ip and \
+                    r['range_end_obj'] >= ip and \
+                    r['as_description'] != "Not routed":
+                print(ip, r)
+                return self.asn_serialize(r)
+
+    def asn_origin(self, asnumber):
+        if isinstance(asnumber, str):
+            if asnumber[:2].upper() == 'AS':
+                i_asnum = int(asnumber[2:])
+            else:
+                i_asnum = int(asnumber)
+        elif isinstance(asnumber, int):
+            i_asnum = asnumber
+        else:
+            return None
+
+        # Search in list
+        l_per_as = []
+        for r in self.asn2ip:
+            if int(r['as_number']) == int(i_asnum):
+                l_per_as.append(r)
+
+        return l_per_as
+
 
 def get_asn_origin(asnumber):
 # net = Net('2001:43f8:7b0::')
@@ -348,7 +408,7 @@ def dns_resolve_r_type(fqdn, r_type):
                 tup['cname_follow'] = dns_resolve_r_type(tup['value'], r_type)
 
             elif r_type == 'AAAA':
-                asn = get_asn(tup['value'])
+                asn = asn_get(tup['value'])
                 if asn is not None:
                     tup['asn'] = asn
 
@@ -356,7 +416,7 @@ def dns_resolve_r_type(fqdn, r_type):
                 tup['ptr_follow'] = dns_resolve_r_type(IPAddress(tup['value']).reverse_dns, 'PTR')
 
             elif r_type == 'A':
-                asn = get_asn(tup['value'])
+                asn = asn_get(tup['value'])
                 if asn is not None:
                     tup['asn'] = asn
 
@@ -597,7 +657,9 @@ def dns_resolve_all_r_type(fqdn):
     # The rest, without CNAME
     #types = [ 'CNAME', 'SOA', 'A', 'NS', 'MD', 'MF', 'CNAME5', 'MB', 'MG', 'MR', 'NULL', 'WKS', 'PTR', 'HINFO', 'MINFO', 'MX', 'TXT', 'RP', 'AFSDB', 'X25', 'ISDN', 'RT', 'NSAP', 'NSAP_PTR', 'SIG', 'KEY', 'PX', 'GPOS', 'AAAA', 'LOC', 'NXT', 'SRV', 'NAPTR', 'KX', 'CERT', 'A6', 'DNAME', 'OPT', 'APL', 'DS', 'SSHFP', 'IPSECKEY', 'RRSIG', 'NSEC', 'DNSKEY', 'DHCID', 'NSEC3', 'NSEC3PARAM', 'TLSA', 'HIP', 'CDS', 'CDNSKEY', 'CSYNC', 'SPF', 'UNSPEC', 'EUI48', 'EUI64', 'TKEY', 'TSIG', 'IXFR', 'AXFR', 'MAILB', 'MAILA', 'ANY', 'URI', 'CAA', 'AVC', 'TA', 'DLV' ]
     types = [ 'CNAME', 'SOA', 'A', 'NS', 'MD', 'MF', 'MB', 'MG', 'MR', 'NULL', 'WKS', 'PTR', 'HINFO', 'MINFO', 'MX', 'TXT', 'RP', 'AFSDB', 'X25', 'ISDN', 'RT', 'NSAP', 'SIG', 'KEY', 'PX', 'GPOS', 'AAAA', 'LOC', 'NXT', 'SRV', 'NAPTR', 'KX', 'CERT', 'A6', 'DNAME', 'OPT', 'APL', 'DS', 'SSHFP', 'IPSECKEY', 'RRSIG', 'NSEC', 'DNSKEY', 'DHCID', 'NSEC3', 'NSEC3PARAM', 'TLSA', 'HIP', 'CDS', 'CDNSKEY', 'CSYNC', 'SPF', 'UNSPEC', 'EUI48', 'EUI64', 'TKEY', 'TSIG', 'IXFR', 'AXFR', 'MAILB', 'MAILA', 'ANY', 'URI', 'CAA', 'AVC', 'TA', 'DLV' ]
-    types = [ 'CNAME', 'SOA', 'A', 'NS', 'MX', 'TXT' ]
+    types = [   'CNAME', 'SOA', 'A', 'AAAA', 'NS', \
+                'MX', 'TXT', 'CAA', 'SRV', \
+                'DS', 'NSEC3', 'NSEC', 'RRSIG' ]
 
     results = []
 

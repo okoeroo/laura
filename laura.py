@@ -758,6 +758,21 @@ if not args.input:
     print("No input")
     sys.exit(1)
 
+
+
+# Initialize ASN database
+asn_lookup = oscarlib.ASNLookUp()
+print(asn_lookup.asn_origin('AS1104'))
+print("----------")
+print(asn_lookup.asn_origin('1104'))
+print("----------")
+print(asn_lookup.asn_origin(1104))
+print("----------")
+print(asn_lookup.asn_get('164.132.194.210'))
+
+
+sys.exit(1)
+
 #r = oscarlib.get_asn_origin('AS286')
 #pprint.pprint(r, indent=4)
 #sys.exit(1)
