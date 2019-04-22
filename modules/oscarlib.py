@@ -8,11 +8,6 @@ import os
 import json
 import pprint
 
-from ipwhois.net import Net
-from ipwhois.asn import IPASN
-from ipwhois.asn import ASNOrigin
-
-from urllib.request import urlopen
 import requests
 import requests_cache
 import threading
@@ -89,23 +84,12 @@ class ASNLookUp(object):
         # Search in list
         l_per_as = []
         for r in self.asn2ip:
-            if int(r['as_number']) == int(i_asnum):
+            if r['as_number'] == i_asnum:
                 l_per_as.append(r)
 
         return l_per_as
 
 
-def get_asn_origin(asnumber):
-# net = Net('2001:43f8:7b0::')
-# obj = ASNOrigin(net)
-# results = obj.lookup(asn='AS37578')
-# pprint(results)
-
-    net = Net('0.0.0.0')
-    obj = ASNOrigin(net)
-#    obj = ASNOrigin()
-    results = obj.lookup(asn=asnumber)
-    return results
 
 class my_threading(object):
     def __init__(self, func, list_of_work):
@@ -356,10 +340,6 @@ def ct_certspotter_search_domain_for_more_hostnames(base_fqdn, scopecreep, apike
         r = requests.get(url=url, headers=headers)
 
     res = r.json()
-
-#    html = urlopen("https://certspotter.com/api/v0/certs?expired=false&duplicate=false&domain=" + base_fqdn)
-#    s = html.read()
-#    res = json.loads(s.decode('utf8'))
 
     for ct_cert in res:
         for fqdn in ct_cert['dns_names']:

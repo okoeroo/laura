@@ -36,22 +36,22 @@ if __name__ == "__main__":
         csv_reader = csv.reader(csv_file, delimiter='\t')
         for row in csv_reader:
             sql = ' '.join(["INSERT INTO ip2asn",
-                                        "(range_start, range_start_bits, range_end, range_end_bits, AS_number, country_code, AS_description)",
+                                        "( range_start,  range_start_bits,  range_end,  range_end_bits,  AS_number,  country_code,  AS_description)",
                                  "VALUES (:range_start, :range_start_bits, :range_end, :range_end_bits, :AS_number, :country_code, :AS_description)"])
 
+#            print(IPAddress(row[0]).packed)
 #            print(bytes([int(IPAddress(row[0]).bin[2:], 2)]))
 #            print(row)
 
             sqlite_cur.execute(sql,
                                {"range_start":row[0],
-                                "range_start_bits":bytes([int(IPAddress(row[0]).bin[2:], 2)]),
+                                "range_start_bits":IPAddress(row[0]).packed,
                                 "range_end":row[1],
-                                "range_end_bits":bytes([int(IPAddress(row[1]).bin[2:], 2)]),
+                                "range_end_bits":IPAddress(row[1]).packed,
                                 "AS_number":int(row[2]),
                                 "country_code":row[3],
                                 "AS_description":row[4]})
 
-            break
     print("Process: ip2asn-combined.tsv")
     sqlite_cur.execute("commit")
 
@@ -66,13 +66,13 @@ if __name__ == "__main__":
         csv_reader = csv.reader(csv_file, delimiter='\t')
         for row in csv_reader:
             sql = ' '.join(["INSERT INTO ipv4country",
-                                        "(range_start, range_start_bits, range_end, range_end_bits, country_code)",
-                                 "VALUES (:range_start, :range_end, :range_end_bits, :country_code)"])
+                                        "( range_start,  range_start_bits,  range_end,  range_end_bits,  country_code)",
+                                 "VALUES (:range_start, :range_start_bits, :range_end, :range_end_bits, :country_code)"])
             sqlite_cur.execute(sql,
                                {"range_start":row[0],
-                                "range_start_bits":bytes([int(IPAddress(row[0]).bin[2:], 2)]),
+                                "range_start_bits":IPAddress(row[0]).packed,
                                 "range_end":row[1],
-                                "range_end_bits":bytes([int(IPAddress(row[1]).bin[2:], 2)]),
+                                "range_end_bits":IPAddress(row[1]).packed,
                                 "country_code":row[2]})
     print("Process: ip2country-v4.tsv")
     sqlite_cur.execute("commit")
@@ -87,9 +87,9 @@ if __name__ == "__main__":
                                  "VALUES (:range_start, :range_start_bits, :range_end, :range_end_bits, :country_code)"])
             sqlite_cur.execute(sql,
                                {"range_start":row[0],
-                                "range_start_bits":bytes([int(IPAddress(row[0]).bin[2:], 2)]),
+                                "range_start_bits":IPAddress(row[0]).packed,
                                 "range_end":row[1],
-                                "range_end_bits":bytes([int(IPAddress(row[1]).bin[2:], 2)]),
+                                "range_end_bits":IPAddress(row[1]).packed,
                                 "country_code":row[2]})
     print("Process: ip2country-v6.tsv")
     sqlite_cur.execute("commit")
