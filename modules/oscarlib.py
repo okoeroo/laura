@@ -42,11 +42,13 @@ class ASNLookUp(object):
             r['range_end']      = row[1]
 
             r['cidrs']          = []
+            r['assoc_cidrs']    = []
 
             ipr = IPRange(r['range_start'], r['range_end'])
             for c in ipr.cidrs():
                 # Need to check, if the IPAddress is part of the CIDR
                 net = IPNetwork(str(c))
+                r['assoc_cidrs'].append(str(c))
                 if IPAddress(ipaddress) in net:
                     r['cidrs'].append(str(c))
 
