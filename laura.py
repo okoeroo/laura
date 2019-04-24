@@ -779,6 +779,9 @@ if not args.input:
 #pprint.pprint(r, indent=4)
 #sys.exit(1)
 
+#print(oscarlib.tcp_test_range('164.132.194.210'))
+#sys.exit(1)
+
 domains_to_search = oscarlib.load_file_into_array(args.input)
 
 print("Scan started for:")

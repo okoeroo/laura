@@ -9,6 +9,7 @@ import json
 import pprint
 
 import sqlite3
+import socket
 import requests
 import requests_cache
 import threading
@@ -19,6 +20,37 @@ import multiprocessing
 import queue
 
 import csv
+
+
+def tcp_test(ipaddr, portnum, timeout=5):
+    s = socket.socket()
+    if isinstance(portnum, str):
+        p = int(portnum)
+    elif isinstance(portnum, int):
+        p = portnum
+    else:
+        return None
+
+    try:
+        s = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+        s.settimeout(timeout)
+        res = s.connect_ex((ipaddr, portnum))
+        if res == 0:
+            verdict = True
+        else:
+            verdict = False
+    except Exception as e:
+        verdict = False
+    finally:
+        s.close()
+
+    return verdict
+
+def tcp_test_range(ipaddr, portnums=[25,80,443,465,993], timeout=5):
+    res = {}
+    for i in portnums:
+        res[str(i)] = tcp_test(ipaddr, i, timeout)
+    return res
 
 
 class ASNLookUp(object):
@@ -391,6 +423,9 @@ def dns_resolve_r_type(fqdn, r_type):
                 # Reverse lookup
                 tup['ptr_follow'] = dns_resolve_r_type(IPAddress(tup['value']).reverse_dns, 'PTR')
 
+                # TCP test
+                tup['connection_test'] = tcp_test_range(tup['value'])
+
             elif r_type == 'A':
                 asn = ASNLookUp().asn_get(tup['value'])
                 if asn is not None:
@@ -398,6 +433,9 @@ def dns_resolve_r_type(fqdn, r_type):
 
                 # Reverse lookup
                 tup['ptr_follow'] = dns_resolve_r_type(IPAddress(tup['value']).reverse_dns, 'PTR')
+
+                # TCP test
+                tup['connection_test'] = tcp_test_range(tup['value'])
 
             elif r_type == 'MX':
                 if not len(str(r_data).split()) == 2:
