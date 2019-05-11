@@ -59,7 +59,7 @@ if __name__ == "__main__":
     print("Creating indexes")
     sqlite_conn.execute('''CREATE INDEX i_as_number ON ip2asn (AS_number)''')
     sqlite_conn.execute('''CREATE INDEX i_range_end_bits ON ip2asn (range_end_bits)''')
-    sqlite_conn.execute('''CREATE INDEX i_range_begin_bits ON ip2asn (range_begin_bits)''')
+    sqlite_conn.execute('''CREATE INDEX i_range_start_bits ON ip2asn (range_start_bits)''')
 
 #    sqlite_cur.execute("select range_start_bits from ip2asn")
 #    print("select range_start_bits from ip2asn")
