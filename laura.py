@@ -24,48 +24,19 @@ import json
 
 import pprint
 
-
-### Private imports
+#################
+# Private imports
 modpath = "".join([os.path.dirname(os.path.realpath(__file__)), "/", "modules"])
 sys.path.append(modpath)
 
 import oscarlib
-
-####################
-def req_get_inner(schema, fqdn_rec):
-#    expire_after = timedelta(minutes=15)
-#    requests_cache.install_cache('demo_cache1', expire_after=expire_after)
-
-    base_url = schema + fqdn_rec['fqdn']
-    try:
-        r = requests.get(base_url, allow_redirects=False, timeout=2)
-        if r.status_code >= 300 and r.status_code < 400:
-            if 'Location' in r.headers.keys():
-                u = w.add_redirect(schema, fqdn_rec['fqdn'], r.headers['Location'])
-                w.add_fqdn2redirect(fqdn_rec['uuid'], u)
-                print("Location found:",
-                      schema + fqdn_rec['fqdn'],
-                      r.headers['Location'],
-                      file=sys.stderr)
-                return True
-    except:
-        pass
-
-    return False
-
-
-def req_get(fqdn_rec):
-    print(fqdn_rec)
-    req_get_inner('http://', fqdn_rec)
-    req_get_inner('https://', fqdn_rec)
-####################
-
-
-
+#################
 
 
 ##### MAIN #####
 import argparse
+
+
 
 
 # Init
@@ -85,27 +56,10 @@ if not args.input:
 
 
 
-## Initialize ASN database
-#asn_lookup = oscarlib.ASNLookUp()
-#print(asn_lookup.asn_origin('AS1104'))
-#print("----------")
-#print(asn_lookup.asn_origin('1104'))
-#print("----------")
-#print(asn_lookup.asn_origin(1104))
-#print("----------")
-#print(asn_lookup.asn_get('164.132.194.210'))
-#print(oscarlib.ASNLookUp().asn_get('164.132.194.210'))
-#
-#print(oscarlib.ASNLookUp().asn_origin(1136))
-#
-#sys.exit(1)
-
-#r = oscarlib.get_asn_origin('AS286')
-#pprint.pprint(r, indent=4)
-#sys.exit(1)
-
-#print(oscarlib.tcp_test_range('164.132.194.210'))
-#sys.exit(1)
+#pprint.pprint(oscarlib.req_get_inner('https://', "oscar.koeroo.net"))
+#pprint.pprint(oscarlib.req_get_inner('https://', "www.kpn.com"))
+#pprint.pprint(oscarlib.req_get_inner('https://', "expired.badssl.com"))
+#sys.exit(0)
 
 domains_to_search = oscarlib.load_file_into_array(args.input)
 
