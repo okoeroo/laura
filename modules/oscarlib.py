@@ -119,7 +119,7 @@ def jsonify_certificate(cert):
     return results
 
 
-def req_get_inner(url, recurse=1):
+def http_probe(url, recurse=1):
 #    expire_after = timedelta(minutes=15)
 #    requests_cache.install_cache('demo_cache1', expire_after=expire_after)
 
@@ -180,7 +180,7 @@ def req_get_inner(url, recurse=1):
                     results['recurse'] = "Maximum recursion reached"
                 else:
                     print("Recurse level", recurse)
-                    results['recurse'] = req_get_inner(results['location'], recurse=recurse+1)
+                    results['recurse'] = http_probe(results['location'], recurse=recurse+1)
             else:
                 print("No Location header found")
     except:
@@ -190,7 +190,7 @@ def req_get_inner(url, recurse=1):
 
 
 
-def tcp_test(ipaddr, portnum, timeout=5):
+def tcp_probe(ipaddr, portnum, timeout=5):
     s = socket.socket()
     if isinstance(portnum, str):
         p = int(portnum)
@@ -214,11 +214,11 @@ def tcp_test(ipaddr, portnum, timeout=5):
 
     return verdict
 
-#print(oscarlib.tcp_test_range('164.132.194.210'))
-def tcp_test_range(ipaddr, portnums=[25,80,443,465,993], timeout=5):
+#print(oscarlib.tcp_probe_range('164.132.194.210'))
+def tcp_probe_range(ipaddr, portnums=[25,80,443,465,993], timeout=5):
     res = {}
     for i in portnums:
-        res[str(i)] = tcp_test(ipaddr, i, timeout)
+        res[str(i)] = tcp_probe(ipaddr, i, timeout)
     return res
 
 
@@ -607,14 +607,14 @@ def dns_resolve_r_type(fqdn, r_type):
                 tup['ptr_follow'] = dns_resolve_r_type(IPAddress(tup['value']).reverse_dns, 'PTR')
 
                 # TCP test
-                tup['connection'] = tcp_test_range(tup['value'])
+                tup['connection'] = tcp_probe_range(tup['value'])
 
                 # Using the TCP test output - check website and recurse HTTP redirects
                 if tup['connection']['80'] == True:
-                    tup['connection']['http'] = req_get_inner('http://' + results['fqdn'])
+                    tup['connection']['http'] = http_probe('http://' + results['fqdn'])
 
                 if tup['connection']['443'] == True:
-                    tup['connection']['https'] = req_get_inner('https://' + results['fqdn'])
+                    tup['connection']['https'] = http_probe('https://' + results['fqdn'])
 
             elif r_type == 'A':
                 asn = ASNLookUp().asn_get(tup['value'])
@@ -625,14 +625,14 @@ def dns_resolve_r_type(fqdn, r_type):
                 tup['ptr_follow'] = dns_resolve_r_type(IPAddress(tup['value']).reverse_dns, 'PTR')
 
                 # TCP test
-                tup['connection'] = tcp_test_range(tup['value'])
+                tup['connection'] = tcp_probe_range(tup['value'])
 
                 # Using the TCP test output - check website and recurse HTTP redirects
                 if tup['connection']['80'] == True:
-                    tup['connection']['http'] = req_get_inner('http://' + results['fqdn'])
+                    tup['connection']['http'] = http_probe('http://' + results['fqdn'])
 
                 if tup['connection']['443'] == True:
-                    tup['connection']['https'] = req_get_inner('https://' + results['fqdn'])
+                    tup['connection']['https'] = http_probe('https://' + results['fqdn'])
 
             elif r_type == 'MX':
                 if not len(str(r_data).split()) == 2:
