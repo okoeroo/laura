@@ -54,6 +54,14 @@ def new_HTTPSConnection_connect(self):
 HTTPSConnection.connect = new_HTTPSConnection_connect
 
 
+
+def set_cert_api(cert_api):
+    global glob_cert_api
+    glob_cert_api = cert_api
+
+def get_cert_api():
+    return glob_cert_api
+
 def jsonify_certificate(cert):
     results = {}
 
@@ -127,8 +135,13 @@ def req_get_inner(schema, fqdn):
         if schema == 'https://':
             try:
                 # Extract the certificate
-                j_cert = jsonify_certificate(r.peer_certificate)
-                results['certificate'] = j_cert
+                # old: j_cert = jsonify_certificate(r.peer_certificate)
+                # old: results['certificate'] = j_cert
+
+                cert_api_post_data = { "host": fqdn, "port": "443", "sni": fqdn }
+                cert_api_post_resp = requests.post(get_cert_api(), json=cert_api_post_data, )
+                if r.status_code == 200:
+                    results['certificate'] = cert_api_post_resp.json()
 
             except Exception as e:
                 print(e)

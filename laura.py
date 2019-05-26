@@ -48,6 +48,7 @@ parser.add_argument("--cs-apikey",   dest='cs_apikey', help="CertSpotter API Key
 parser.add_argument("--fb-apikey",   dest='fb_apikey', help="Facebook App API Key", type=str)
 parser.add_argument("--input",       dest='input', help="Input list", type=str)
 parser.add_argument('--output-json', dest='output_json', help="Output JSON", type=str)
+parser.add_argument('--cert-api',    dest='cert_api', help="URL to the Certificate Hunter API. Example: http://localhost:5000/certificate", type=str)
 args = parser.parse_args()
 
 if not args.input:
@@ -61,6 +62,14 @@ if not args.input:
 #pprint.pprint(oscarlib.req_get_inner('https://', "expired.badssl.com"))
 #sys.exit(0)
 
+if not args.cert_api:
+    print("No certificate backend API provided")
+    oscarlib.set_cert_api("http://localhost:5000/certificate")
+else:
+    oscarlib.set_cert_api(args.cert_api)
+
+
+# Lock and load the input for processing
 domains_to_search = oscarlib.load_file_into_array(args.input)
 
 print("Scan started for:")
