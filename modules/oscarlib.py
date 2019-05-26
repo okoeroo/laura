@@ -118,7 +118,7 @@ def jsonify_certificate(cert):
     return results
 
 
-def req_get_inner(schema, fqdn):
+def req_get_inner(schema, fqdn, recurse=1):
 #    expire_after = timedelta(minutes=15)
 #    requests_cache.install_cache('demo_cache1', expire_after=expire_after)
 
@@ -141,7 +141,10 @@ def req_get_inner(schema, fqdn):
                 cert_api_post_data = { "host": fqdn, "port": "443", "sni": fqdn }
                 cert_api_post_resp = requests.post(get_cert_api(), json=cert_api_post_data, )
                 if r.status_code == 200:
-                    results['certificate'] = cert_api_post_resp.json()
+                    j_body = cert_api_post_resp.json()
+                    results['certificate'] = j_body['certificate']
+                else:
+                    results['certificate'] = "error: {}".format(r.status_code)
 
             except Exception as e:
                 print(e)
@@ -160,7 +163,11 @@ def req_get_inner(schema, fqdn):
                     location_schema = 'https://'
                     location_url = results['location'].lower().split('https://', 1)[1]
 
-                results['recurse'] = req_get_inner(location_schema, location_url)
+                if recurse > 6:
+                    results['recurse'] = "Maximum recursion reached"
+                else:
+                    print("Recurse level", recurse)
+                    results['recurse'] = req_get_inner(location_schema, location_url, recurse=recurse+1)
             else:
                 print("No Location header found")
     except:

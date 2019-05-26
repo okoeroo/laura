@@ -10,39 +10,9 @@ import requests
 import requests_cache
 import dns.resolver
 import OpenSSL
+import ssl
+import socket
 from wsgiref import simple_server
-
-
-HTTPResponse = requests.packages.urllib3.response.HTTPResponse
-orig_HTTPResponse__init__ = HTTPResponse.__init__
-def new_HTTPResponse__init__(self, *args, **kwargs):
-    orig_HTTPResponse__init__(self, *args, **kwargs)
-    try:
-        self.peer_certificate = self._connection.peer_certificate
-    except AttributeError:
-        pass
-HTTPResponse.__init__ = new_HTTPResponse__init__
-
-HTTPAdapter = requests.adapters.HTTPAdapter
-orig_HTTPAdapter_build_response = HTTPAdapter.build_response
-def new_HTTPAdapter_build_response(self, request, resp):
-    response = orig_HTTPAdapter_build_response(self, request, resp)
-    try:
-        response.peer_certificate = resp.peer_certificate
-    except AttributeError:
-        pass
-    return response
-HTTPAdapter.build_response = new_HTTPAdapter_build_response
-
-HTTPSConnection = requests.packages.urllib3.connection.HTTPSConnection
-orig_HTTPSConnection_connect = HTTPSConnection.connect
-def new_HTTPSConnection_connect(self):
-    orig_HTTPSConnection_connect(self)
-    try:
-        self.peer_certificate = self.sock.connection.get_peer_certificate()
-    except AttributeError:
-        pass
-HTTPSConnection.connect = new_HTTPSConnection_connect
 
 
 def jsonify_certificate(cert):
@@ -86,6 +56,7 @@ def jsonify_certificate(cert):
     results['not_after_iso'] = not_after_dt.isoformat()
 
 
+    # Is the certificate valid?
     if datetime.now() < not_before_dt:
         results['cert_valid'] = 'not_yet_valid'
     elif datetime.now() > not_after_dt:
@@ -108,54 +79,41 @@ def jsonify_certificate(cert):
 
     return results
 
+def test_ssl_connect(host_addr, port, server_name):
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.settimeout(4)
 
-def req_get_inner(schema, fqdn):
-#    expire_after = timedelta(minutes=15)
-#    requests_cache.install_cache('demo_cache1', expire_after=expire_after)
+    # PROTOCOL_TLS_CLIENT requires valid cert chain and hostname
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    context.check_hostname = False
+    context.verify_mode = ssl.CERT_NONE
+    context.load_verify_locations('modules/cabundle.pem')
 
-    results = {}
-    results['schema'] = schema
-    results['fqdn'] = fqdn
-    results['base_url'] = results['schema'] + results['fqdn']
-
+    conn = context.wrap_socket(sock, server_hostname=server_name)
     try:
-        requests.packages.urllib3.disable_warnings()
-        r = requests.get(results['base_url'], allow_redirects=False, timeout=5, verify=False)
-        results['status_code'] = r.status_code
-
-        if schema == 'https://':
-            try:
-                # Extract the certificate
-                j_cert = jsonify_certificate(r.peer_certificate)
-                results['certificate'] = j_cert
-
-            except Exception as e:
-                print(e)
-
-        if r.status_code >= 300 and r.status_code < 400:
-            # Redirect found, let's see if it has a Location
-            if 'Location' in r.headers.keys():
-                results['location'] = r.headers['Location']
-
-                # Recurse
-                if results['location'].lower().startswith('http://'):
-                    location_schema = 'http://'
-                    location_url = results['location'].lower().split('http://', 1)[1]
-
-                elif results['location'].lower().startswith('https://'):
-                    location_schema = 'https://'
-                    location_url = results['location'].lower().split('https://', 1)[1]
-
-                results['recurse'] = req_get_inner(location_schema, location_url)
-            else:
-                print("No Location header found")
-    except:
+        conn.connect((host_addr, port))
+    except Exception as e:
+        print(e)
         pass
 
-    return results
+    tls = {}
+    tls['tls_version'] = conn.version()
+    tls['encryption'] = { 'cipher_suite': conn.cipher()[0], 'security_bits': conn.cipher()[2] }
+
+    # When the verification fails, no parsed certificate is returned. But a raw
+    # DER output is possible, which can be converted to PEM and parsed further
+    cert_bin = conn.getpeercert(True)
+    pem_cert = ssl.DER_cert_to_PEM_cert(conn.getpeercert(True))
+    x509 = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, pem_cert)
+
+    j_cert = jsonify_certificate(x509)
+
+    tls['certificate']  = j_cert
+    return tls
+
 
 def tls_get_peer_certificate(host, port, sni):
-    return req_get_inner('https://', host)
+    return test_ssl_connect(host, port, sni)
 
 
 class CertificateAPI:
@@ -188,7 +146,16 @@ class CertificateAPI:
             res.status = falcon.HTTP_201
             return
 
-        j_result = tls_get_peer_certificate(j.get("host"), j.get("port"), j.get("sni"))
+        if isinstance(j.get("port"), str):
+            port = int(j.get("port"))
+        elif isinstance(j.get("port"), int):
+            port = j.get("port")
+        else:
+            res.body = 'error: port number not parseable'
+            res.status = falcon.HTTP_400
+            return
+
+        j_result = tls_get_peer_certificate(j.get("host"), port, j.get("sni"))
         if j_result is None:
             res.status = falcon.HTTP_500
         else:
@@ -205,3 +172,16 @@ print("Loaded route: '/certificate'")
 ####
 
 print("Ready.")
+
+### Main
+if __name__ == "__main__":
+    httpd = simple_server.make_server("127.0.0.1", 5000, api)
+    bind_complete = True
+
+    httpd.daemon_threads = True
+    try:
+        httpd.serve_forever()
+    except KeyboardInterrupt:
+        print("Service stopped by user.")
+        pass
+
