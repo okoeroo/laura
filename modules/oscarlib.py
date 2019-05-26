@@ -16,6 +16,7 @@ import threading
 import cert_human
 
 from netaddr import *
+from urllib.parse import urlparse
 
 import multiprocessing
 import queue
@@ -118,33 +119,53 @@ def jsonify_certificate(cert):
     return results
 
 
-def req_get_inner(schema, fqdn, recurse=1):
+def req_get_inner(url, recurse=1):
 #    expire_after = timedelta(minutes=15)
 #    requests_cache.install_cache('demo_cache1', expire_after=expire_after)
 
+    u = urlparse(url)
+
     results = {}
-    results['schema'] = schema
-    results['fqdn'] = fqdn
-    results['base_url'] = results['schema'] + results['fqdn']
+    results['scheme'] = u.scheme
+    results['netloc'] = u.netloc
+    results['fqdn'] = u.netloc.split(':')[0]
+
+    if u.port is not None:
+        results['port'] = u.port
+    else:
+        if results['scheme'] == 'http':
+            results['port'] = 80
+        elif results['scheme'] == 'https':
+            results['port'] = 443
+        else:
+            # YOLO
+            results['port'] = 80
+
+    results['path'] = u.path
+    results['params'] = u.params
+    results['query'] = u.query
+    results['fragment'] = u.fragment
+    results['url'] = u.geturl()
+
 
     try:
         requests.packages.urllib3.disable_warnings()
-        r = requests.get(results['base_url'], allow_redirects=False, timeout=5, verify=False)
+        r = requests.get(results['url'], allow_redirects=False, timeout=5, verify=False)
         results['status_code'] = r.status_code
 
-        if schema == 'https://':
+        if results['scheme'] == 'https':
             try:
                 # Extract the certificate
                 # old: j_cert = jsonify_certificate(r.peer_certificate)
                 # old: results['certificate'] = j_cert
 
-                cert_api_post_data = { "host": fqdn, "port": "443", "sni": fqdn }
-                cert_api_post_resp = requests.post(get_cert_api(), json=cert_api_post_data, )
-                if r.status_code == 200:
+                cert_api_post_data = { "host": results['fqdn'], "port": results['port'], "sni": results['fqdn'] }
+                try:
+                    cert_api_post_resp = requests.post(get_cert_api(), json=cert_api_post_data)
                     j_body = cert_api_post_resp.json()
-                    results['certificate'] = j_body['certificate']
-                else:
-                    results['certificate'] = "error: {}".format(r.status_code)
+                    results['tls'] = j_body
+                except Exception as e:
+                    results['tls'] = "error: {}".format(e)
 
             except Exception as e:
                 print(e)
@@ -155,39 +176,17 @@ def req_get_inner(schema, fqdn, recurse=1):
                 results['location'] = r.headers['Location']
 
                 # Recurse
-                if results['location'].lower().startswith('http://'):
-                    location_schema = 'http://'
-                    location_url = results['location'].lower().split('http://', 1)[1]
-
-                elif results['location'].lower().startswith('https://'):
-                    location_schema = 'https://'
-                    location_url = results['location'].lower().split('https://', 1)[1]
-
                 if recurse > 6:
                     results['recurse'] = "Maximum recursion reached"
                 else:
                     print("Recurse level", recurse)
-                    results['recurse'] = req_get_inner(location_schema, location_url, recurse=recurse+1)
+                    results['recurse'] = req_get_inner(results['location'], recurse=recurse+1)
             else:
                 print("No Location header found")
     except:
         pass
 
     return results
-
-
-#pprint.pprint(oscarlib.req_get("oscar.koeroo.net"))
-#pprint.pprint(oscarlib.req_get("office.com"))
-#pprint.pprint(oscarlib.req_get("kpn.com"))
-def req_get(fqdn_rec):
-    results = []
-    results.append(req_get_inner('http://', fqdn_rec))
-    results.append(req_get_inner('https://', fqdn_rec))
-    return results
-####################
-
-
-
 
 
 
@@ -612,10 +611,10 @@ def dns_resolve_r_type(fqdn, r_type):
 
                 # Using the TCP test output - check website and recurse HTTP redirects
                 if tup['connection']['80'] == True:
-                    tup['connection']['http'] = req_get_inner('http://', results['fqdn'])
+                    tup['connection']['http'] = req_get_inner('http://' + results['fqdn'])
 
                 if tup['connection']['443'] == True:
-                    tup['connection']['https'] = req_get_inner('https://', results['fqdn'])
+                    tup['connection']['https'] = req_get_inner('https://' + results['fqdn'])
 
             elif r_type == 'A':
                 asn = ASNLookUp().asn_get(tup['value'])
@@ -630,10 +629,10 @@ def dns_resolve_r_type(fqdn, r_type):
 
                 # Using the TCP test output - check website and recurse HTTP redirects
                 if tup['connection']['80'] == True:
-                    tup['connection']['http'] = req_get_inner('http://', results['fqdn'])
+                    tup['connection']['http'] = req_get_inner('http://' + results['fqdn'])
 
                 if tup['connection']['443'] == True:
-                    tup['connection']['https'] = req_get_inner('https://', results['fqdn'])
+                    tup['connection']['https'] = req_get_inner('https://' + results['fqdn'])
 
             elif r_type == 'MX':
                 if not len(str(r_data).split()) == 2:
