@@ -120,7 +120,8 @@ def req_get_inner(schema, fqdn):
     results['base_url'] = results['schema'] + results['fqdn']
 
     try:
-        r = requests.get(results['base_url'], allow_redirects=False, timeout=2, verify=False)
+        requests.packages.urllib3.disable_warnings()
+        r = requests.get(results['base_url'], allow_redirects=False, timeout=5, verify=False)
         results['status_code'] = r.status_code
 
         if schema == 'https://':
