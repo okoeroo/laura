@@ -215,7 +215,25 @@ def tcp_probe(ipaddr, portnum, timeout=5):
     return verdict
 
 #print(oscarlib.tcp_probe_range('164.132.194.210'))
-def tcp_probe_range(ipaddr, portnums=[25,80,443,465,993], timeout=5):
+# 21: FTP: unsecure and FTP-SSL
+# 22: SSH
+# 23: Telnet
+# 25: SMTP: unsecure and SMTP-SSL
+# 80: HTTP
+# 88: Kerberos
+# 110: POP3: unsecure and POP3-SSL
+# 143: IMAP: unsecure and IMAP-SSL
+# 157: BGP
+# 194: IRC
+# 389: LDAP
+# 443: HTTPS
+# 631: IPP
+# 860: iSCSI
+# 873: rsync
+# 993: IMAPS
+# 995: POPS
+# 8080: HTTP-Alt
+def tcp_probe_range(ipaddr, portnums=[21,22,23,25,80,110,143,389,443,631,993,995,8080], timeout=3):
     res = {}
     for i in portnums:
         res[str(i)] = tcp_probe(ipaddr, i, timeout)

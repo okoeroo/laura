@@ -79,6 +79,15 @@ def jsonify_certificate(cert):
 
     return results
 
+def decompose_openssl_ciphersuite(cs):
+    results = {}
+    results['openssl']  = cs
+    results['kex']  = cs.split("-")[0]
+    results['auth'] = cs.split("-")[1]
+    results['enc']  = cs.split("-")[2]
+    results['mac']  = cs.split("-")[3]
+    return results
+
 def test_ssl_connect(host_addr, port, server_name):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.settimeout(4)
@@ -98,7 +107,9 @@ def test_ssl_connect(host_addr, port, server_name):
 
     tls = {}
     tls['tls_version'] = conn.version()
-    tls['encryption'] = { 'cipher_suite': conn.cipher()[0], 'security_bits': conn.cipher()[2] }
+
+    cipher_suite = decompose_openssl_ciphersuite(conn.cipher()[0])
+    tls['encryption'] = { 'ciphersuite': cipher_suite, 'security_bits': conn.cipher()[2] }
 
     # When the verification fails, no parsed certificate is returned. But a raw
     # DER output is possible, which can be converted to PEM and parsed further
