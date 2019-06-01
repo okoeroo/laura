@@ -179,15 +179,37 @@ def http_probe(url, recurse=1):
                 if recurse > 6:
                     results['recurse'] = "Maximum recursion reached"
                 else:
-                    print("Recurse level", recurse)
-                    results['recurse'] = http_probe(results['location'], recurse=recurse+1)
+                    # Fix for relative locations
+
+                    # Does it start with http(s)://
+                    if results['location'].startswith('http://'):
+                        results['absolute_location'] = results['location']
+                    if results['location'].startswith('https://'):
+                        results['absolute_location'] = results['location']
+                    else:
+                        # Relative URL. When it starts with a slash, make absolute by concat
+                        if results['location'].startswith('/'):
+                            results['absolute_location'] = "".join([results['scheme'],
+                                                                    '://',
+                                                                    results['fqdn'],
+                                                                    results['location']])
+                        # Relative URL. When it doesn't start with a slash, make absolute
+                        # by concat and insert the slash
+                        else:
+                            results['absolute_location'] = "".join([results['scheme'],
+                                                                    '://',
+                                                                    results['fqdn'],
+                                                                    '/',
+                                                                    results['location']])
+
+                    print("Recurse level", recurse, results['location'], results['absolute_location'])
+                    results['recurse'] = http_probe(results['absolute_location'], recurse=recurse+1)
             else:
                 print("No Location header found")
     except:
         pass
 
     return results
-
 
 
 def tcp_probe(ipaddr, portnum, timeout=5):
