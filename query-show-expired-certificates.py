@@ -95,6 +95,7 @@ if __name__ == "__main__":
 #        csv_writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
         #csv_writer.writeheader()
 
+
     #pprint(j_data)
 
     for j_finding in j_data:
@@ -115,3 +116,14 @@ if __name__ == "__main__":
             # Recurse
             http_recurse(h, csv_writer)
 
+    # Close it
+    if args.csv_output:
+        csv_file.close()
+
+    csv_file = open(args.csv_output, mode='r')
+    csv_reader = csv.reader(csv_file)
+    cnt = 0
+    for row in csv_reader:
+        cnt += 1
+
+    print("{} certificate(s) found to be expired.".format(cnt))
