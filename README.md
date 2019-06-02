@@ -6,3 +6,9 @@
 
 # Ready to run
 ./laura.py --fb-apikey $(cat facebook-app.apikey) --input list.txt.oscar --output-json output.json
+
+# Requires
+pip install dnspython ipwhois pyOpenSSL requests requests-cache netaddr
+pip install gunicorn falcon
+pip install python-dateutil 
+
