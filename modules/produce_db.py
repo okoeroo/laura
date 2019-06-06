@@ -33,7 +33,7 @@ if __name__ == "__main__":
 
 
     print("Read: ip2asn-combined.tsv")
-    with open('ip2asn-combined.tsv') as csv_file:
+    with open('ip2asn-combined.tsv', encoding="utf-8") as csv_file:
         csv_reader = csv.reader(csv_file, delimiter='\t')
         for row in csv_reader:
             sql = ' '.join(["INSERT INTO ip2asn",
@@ -54,7 +54,10 @@ if __name__ == "__main__":
                                 "AS_description":row[4]})
 
     print("Process: ip2asn-combined.tsv")
-    sqlite_cur.execute("commit")
+    try:
+        sqlite_cur.execute("commit")
+    except:
+        pass
 
     print("Creating indexes")
     sqlite_conn.execute('''CREATE INDEX i_as_number ON ip2asn (AS_number)''')
@@ -68,7 +71,7 @@ if __name__ == "__main__":
 #    sys.exit(1)
 
     print("Read: ip2country-v4.tsv")
-    with open('ip2country-v4.tsv') as csv_file:
+    with open('ip2country-v4.tsv', encoding="utf-8") as csv_file:
         csv_reader = csv.reader(csv_file, delimiter='\t')
         for row in csv_reader:
             sql = ' '.join(["INSERT INTO ipv4country",
@@ -81,11 +84,14 @@ if __name__ == "__main__":
                                 "range_end_bits":IPAddress(row[1]).packed,
                                 "country_code":row[2]})
     print("Process: ip2country-v4.tsv")
-    sqlite_cur.execute("commit")
+    try:
+        sqlite_cur.execute("commit")
+    except:
+        pass
 
 
     print("Read: ip2country-v6.tsv")
-    with open('ip2country-v6.tsv') as csv_file:
+    with open('ip2country-v6.tsv', encoding="utf-8") as csv_file:
         csv_reader = csv.reader(csv_file, delimiter='\t')
         for row in csv_reader:
             sql = ' '.join(["INSERT INTO ipv6country",
@@ -98,7 +104,10 @@ if __name__ == "__main__":
                                 "range_end_bits":IPAddress(row[1]).packed,
                                 "country_code":row[2]})
     print("Process: ip2country-v6.tsv")
-    sqlite_cur.execute("commit")
+    try:
+        sqlite_cur.execute("commit")
+    except:
+        pass
 
 
 
