@@ -9,6 +9,10 @@
 
 # Requires
 pip install dnspython ipwhois pyOpenSSL requests requests-cache netaddr
+
 pip install gunicorn falcon
+
 pip install python-dateutil 
+
+pip install asn1crypto cert_human
 
