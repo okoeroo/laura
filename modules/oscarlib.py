@@ -64,8 +64,12 @@ def set_cert_api(cert_api):
 def get_cert_api():
     return glob_cert_api
 
-def is_valid_hostname(h_name):
+def is_valid_hostname(h_name, include_in_addr=False):
     if h_name is None or len(h_name) == 0 or len(h_name) > 255:
+        return False
+
+    # Skip the in-addr like things
+    if not include_in_addr and 'in-addr' in h_name:
         return False
 
     # Convert your unicode hostname to punycode (python 3 ) 
@@ -546,6 +550,7 @@ def ct_facebook_paged_query(url, base_fqdn, scopecreep, apikey):
 
     # Integrity check
     if 'error' in page:
+        print(base_fqdn)
         print(page)
         return None
 
@@ -582,8 +587,6 @@ def ct_facebook_search_domain_for_more_hostnames(base_fqdn, scopecreep, apikey):
     requests_cache.install_cache('/tmp/laura.cache', expire_after=expire_after)
 
     results = []
-
-    print(base_fqdn)
 
     base_url = "https://graph.facebook.com/certificates"
     querystring = "&".join(["query=" + base_fqdn,

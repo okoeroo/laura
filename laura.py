@@ -81,6 +81,10 @@ pprint.pprint(domains_to_search)
 total_results_list = []
 
 for d in domains_to_search:
+    # Is this a proper domain?
+    if not oscarlib.is_valid_hostname(d):
+        continue
+
     list_per_domain = []
     list_per_domain.append(d)
     list_per_domain.append(oscarlib.get_wildcard_canary(d))
@@ -88,7 +92,9 @@ for d in domains_to_search:
                       oscarlib.load_static_domain_prefixes(d)
     fb_search_d_f_m_h_results = oscarlib.ct_facebook_search_domain_for_more_hostnames(d, False, args.fb_apikey)
     if fb_search_d_f_m_h_results is None:
-        sys.exit(1)
+        print("Error: can't process {}".format(d))
+        continue
+
     list_per_domain = list_per_domain + fb_search_d_f_m_h_results
 
     list_per_domain = oscarlib.list_dedup(list_per_domain)
