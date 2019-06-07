@@ -63,17 +63,20 @@ if not args.input:
 #sys.exit(0)
 
 if not args.cert_api:
-    print("No certificate backend API provided")
+    print("Using default certificate API backend")
     oscarlib.set_cert_api("http://localhost:5000/certificate")
 else:
+    print("Using \"{}\" as certificate API backend".format(args.cert_api))
     oscarlib.set_cert_api(args.cert_api)
 
 
 # Lock and load the input for processing
-domains_to_search = oscarlib.load_file_into_array(args.input)
+domains_to_search = oscarlib.load_file_into_array(args.input, emptylines=False)
 
 print("Scan started for:")
 print("=========")
+
+pprint.pprint(domains_to_search)
 
 total_results_list = []
 
@@ -83,8 +86,10 @@ for d in domains_to_search:
     list_per_domain.append(oscarlib.get_wildcard_canary(d))
     list_per_domain = list_per_domain + \
                       oscarlib.load_static_domain_prefixes(d)
-    list_per_domain = list_per_domain + \
-                      oscarlib.ct_facebook_search_domain_for_more_hostnames(d, False, args.fb_apikey)
+    fb_search_d_f_m_h_results = oscarlib.ct_facebook_search_domain_for_more_hostnames(d, False, args.fb_apikey)
+    if fb_search_d_f_m_h_results is None:
+        sys.exit(1)
+    list_per_domain = list_per_domain + fb_search_d_f_m_h_results
 
     list_per_domain = oscarlib.list_dedup(list_per_domain)
     print(list_per_domain)

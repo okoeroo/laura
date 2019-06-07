@@ -6,6 +6,7 @@ import time
 import sys
 import os
 import json
+import re
 import pprint
 
 import sqlite3
@@ -62,6 +63,19 @@ def set_cert_api(cert_api):
 
 def get_cert_api():
     return glob_cert_api
+
+def is_valid_hostname(h_name):
+    if h_name is None or len(h_name) == 0 or len(h_name) > 255:
+        return False
+
+    # Convert your unicode hostname to punycode (python 3 ) 
+    # Remove the port number from hostname
+    normalise_host = h_name.encode("idna").decode().split(":")[0]
+
+    hostname = normalise_host.rstrip(".")
+    allowed = re.compile("(?!-)[A-Z\d\-\_]{1,63}(?<!-)$", re.IGNORECASE)
+    return all(allowed.match(x) for x in hostname.split("."))
+
 
 def jsonify_certificate(cert):
     results = {}
@@ -475,8 +489,18 @@ def check_fqdn_is_legit(fqdn):
 
     return False
 
-def load_file_into_array(filename):
-    return open(filename, "r").read().splitlines()
+def nonblank_lines(f):
+    for l in f:
+        line = l.rstrip()
+        if line:
+            yield line
+
+def load_file_into_array(filename, emptylines=True):
+    if emptylines:
+        return open(filename, "r", encoding='utf-8').read().splitlines()
+    else:
+        return filter(None, open(filename, "r", encoding='utf-8').read().splitlines())
+
 
 def load_static_domain_prefixes(base_fqdn):
     results = []
@@ -513,7 +537,17 @@ def ct_facebook_paged_query(url, base_fqdn, scopecreep, apikey):
     headers['Authorization'] = " ".join(["Bearer", apikey])
     r = requests.get(url=url, headers=headers)
 
-    page = r.json()
+    try:
+        page = r.json()
+    except Exception as e:
+        print('Error: {}'.format(e))
+        pass
+        return None
+
+    # Integrity check
+    if 'error' in page:
+        print(page)
+        return None
 
     for ct_cert in page['data']:
         for fqdn in ct_cert['domains']:
@@ -540,10 +574,16 @@ def ct_facebook_search_domain_for_more_hostnames(base_fqdn, scopecreep, apikey):
     if apikey is None:
         return None
 
+    # Input validation
+    if not is_valid_hostname(base_fqdn):
+        return None
+
     expire_after = timedelta(minutes=60)
     requests_cache.install_cache('/tmp/laura.cache', expire_after=expire_after)
 
     results = []
+
+    print(base_fqdn)
 
     base_url = "https://graph.facebook.com/certificates"
     querystring = "&".join(["query=" + base_fqdn,
