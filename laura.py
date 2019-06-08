@@ -38,6 +38,12 @@ import argparse
 
 
 
+def write_line_to_file(filename, msg):
+    with open(filename, 'a+') as f:
+        f.write(msg)
+        f.write('\n\r')
+        f.flush()
+
 
 # Init
 PATH = os.path.dirname(os.path.realpath(__file__)) + '/'
@@ -47,6 +53,8 @@ parser = argparse.ArgumentParser("laura.py")
 parser.add_argument("--cs-apikey",   dest='cs_apikey', help="CertSpotter API Key", type=str)
 parser.add_argument("--fb-apikey",   dest='fb_apikey', help="Facebook App API Key", type=str)
 parser.add_argument("--input",       dest='input', help="Input list", type=str)
+parser.add_argument("--error-file",  dest='error_file', help="List filled with domain names resulting in errors.", type=str)
+parser.add_argument('--output-dir',  dest='output_dir', help="Output directory with JSON files", type=str)
 parser.add_argument('--output-json', dest='output_json', help="Output JSON", type=str)
 parser.add_argument('--cert-api',    dest='cert_api', help="URL to the Certificate Hunter API. Example: http://localhost:5000/certificate", type=str)
 args = parser.parse_args()
@@ -83,31 +91,47 @@ total_results_list = []
 for d in domains_to_search:
     # Is this a proper domain?
     if not oscarlib.is_valid_hostname(d):
+        # Write to error file, when such destination is set
+        if args.error_file is not None:
+            write_line_to_file(args.error_file, d)
         continue
 
-    list_per_domain = []
-    list_per_domain.append(d)
-    list_per_domain.append(oscarlib.get_wildcard_canary(d))
-    list_per_domain = list_per_domain + \
-                      oscarlib.load_static_domain_prefixes(d)
-    fb_search_d_f_m_h_results = oscarlib.ct_facebook_search_domain_for_more_hostnames(d, False, args.fb_apikey)
-    if fb_search_d_f_m_h_results is None:
-        print("Error: can't process {}".format(d))
-        continue
+    try:
+        list_per_domain = []
+        list_per_domain.append(d)
+        list_per_domain.append(oscarlib.get_wildcard_canary(d))
+        list_per_domain = list_per_domain + \
+                          oscarlib.load_static_domain_prefixes(d)
+        fb_search_d_f_m_h_results = oscarlib.ct_facebook_search_domain_for_more_hostnames(d, False, args.fb_apikey)
+        if fb_search_d_f_m_h_results is None:
+            print("Error: can't process {}".format(d))
+            # Write to error file, when such destination is set
+            if args.error_file is not None:
+                write_line_to_file(args.error_file, d)
+            continue
 
-    list_per_domain = list_per_domain + fb_search_d_f_m_h_results
+        list_per_domain = list_per_domain + fb_search_d_f_m_h_results
 
-    list_per_domain = oscarlib.list_dedup(list_per_domain)
-    print(list_per_domain)
-    print()
-    print("Start DNS checks")
+        list_per_domain = oscarlib.list_dedup(list_per_domain)
+        print(list_per_domain)
+        print()
+        print("Start DNS checks")
 
-    m = oscarlib.my_threading(oscarlib.dns_resolve_all_r_type, list_per_domain)
-    results = m.get_results()
-    pprint.pprint(results, indent=4)
+        m = oscarlib.my_threading(oscarlib.dns_resolve_all_r_type, list_per_domain)
+        results = m.get_results()
+        pprint.pprint(results, indent=4)
 
-    total_results_list.extend(results)
-
+        total_results_list.extend(results)
+    except:
+        # Write to error file, when such destination is set
+        if args.error_file is not None:
+            write_line_to_file(args.error_file, d)
+        pass
+    finally:
+        # Write this result down
+        if args.output_dir is not None:
+            with open(args.output_dir + '/' + d + '.json', 'w') as outfile:
+                json.dump(results, outfile, indent=4)
 
 print()
 print("=============================================")

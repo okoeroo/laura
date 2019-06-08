@@ -583,7 +583,7 @@ def ct_facebook_search_domain_for_more_hostnames(base_fqdn, scopecreep, apikey):
     if not is_valid_hostname(base_fqdn):
         return None
 
-    expire_after = timedelta(minutes=60)
+    expire_after = timedelta(days=1,hours=3,minutes=37)
     requests_cache.install_cache('/tmp/laura.cache', expire_after=expire_after)
 
     results = []
