@@ -45,6 +45,10 @@ parser.add_argument('--couch-url',      dest='couch_url',
                                         type=str)
 parser.add_argument('--couch-user',     dest='couch_user', help='CouchDB user', type=str)
 parser.add_argument('--couch-pw',       dest='couch_pw', help='CouchDB password', type=str)
+parser.add_argument('--batch-size',     dest='batch_size',
+                                        help="Process the given amount at a time. (default: 10)",
+                                        default=10,
+                                        type=int)
 args = parser.parse_args()
 
 
@@ -53,66 +57,11 @@ ctx['couch_url']    = args.couch_url
 ctx['couch_user']   = args.couch_user
 ctx['couch_pw']     = args.couch_pw
 ctx['error_file']   = args.error_file
+ctx['batch_size']   = args.batch_size
 
 
-def create_work_list_per_domain(ctx, process_uuid, domain):
-    # List of domains
-    list_per_domain = []
-
-    # Initial load the search list with static information
-    list_per_domain.append(domain)
-    list_per_domain.append(oscarlib.get_wildcard_canary(domain))
-    list_per_domain = list_per_domain + \
-            oscarlib.load_static_domain_prefixes(domain)
-
-    try:
-        # Use the Facebook Developer API to search the Certificate Transparency lists
-        fb_search_d_f_m_h_results = \
-                oscarlib.ct_facebook_search_domain_for_more_hostnames(domain,
-                                                                      False,
-                                                                      ctx['fb_apikey'])
-    except:
-        on_fb_error(ctx, domain)
-        return
-
-    # Report on Error, probably overloading the API again
-    if fb_search_d_f_m_h_results is None:
-        on_fb_error(ctx, domain)
-        return
-
-    # Extend list with Facebook API results
-    list_per_domain = list_per_domain + fb_search_d_f_m_h_results
-
-    # Dedub the result
-    list_per_domain = oscarlib.list_dedup(list_per_domain)
-
-    # Create object for on the Couch
-    work_list = {}
-    work_list['_id'] = domain
-    work_list['process_id'] = process_uuid
-    work_list['process_datetime'] = datetime.now().isoformat()
-    work_list['domainlist'] = list_per_domain
-
-    # Store DNS work
-    oscarlib.couchdb_put_obj(ctx, 'dns_work', work_list)
-
-    print("Added info for {} as process UUID {}".format(domain, process_uuid))
-
-#    for i in list_per_domain:
-#        print("--", i)
-
-#    print()
-#    print("Start DNS checks")
-#
-#    m = oscarlib.my_threading(oscarlib.dns_resolve_all_r_type, list_per_domain)
-#    results = m.get_results()
-#    pprint.pprint(results, indent=4)
-#
-#    total_results_list.extend(results)
-
-
-def process_dns_work(ctx):
-    # 1. Fetch 'work' from the couch, change status to processing
+def process_dns_work(ctx, batch_size):
+    # 1. Fetch 'dns_work' from the couch
     # 2. Enrich the lists.
     # 3. Store it in 'dns_work'
     # 4. Update 'work' from 'todo' to 'done'
@@ -126,11 +75,14 @@ def process_dns_work(ctx):
                                      'status',
                                      '$eq',
                                      'todo',
-                                     limit=10,
+                                     limit=batch_size,
                                      skip=0)
     # Change status to processing
-    for i in docs:
-        pprint.pprint(i)
+    for domain_doc in docs:
+        pprint.pprint(domain_doc)
+        m = oscarlib.my_threading(oscarlib.dns_resolve_all_r_type, domain_doc['domainlist'])
+        results = m.get_results()
+        pprint.pprint(results, indent=4)
 
     return
 #        oscarlib.couchdb_update_docs(ctx,
@@ -157,7 +109,9 @@ def process_dns_work(ctx):
     return
 
 # Create all the stuff
-process_dns_work(ctx)
+process_dns_work(ctx, args.batch_size)
+
+###### 
 sys.exit(1)
 
 
@@ -198,4 +152,16 @@ if args.output_json is not None:
 
 # Total results, integrated
 pprint.pprint(total_results_list, indent=4)
+
+#    for i in list_per_domain:
+#        print("--", i)
+
+#    print()
+#    print("Start DNS checks")
+#
+#    m = oscarlib.my_threading(oscarlib.dns_resolve_all_r_type, list_per_domain)
+#    results = m.get_results()
+#    pprint.pprint(results, indent=4)
+#
+#    total_results_list.extend(results)
 
