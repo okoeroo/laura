@@ -12,6 +12,7 @@ import pprint
 import sqlite3
 import socket
 import requests
+from requests.adapters import HTTPAdapter
 import requests_cache
 import threading
 import cert_human
@@ -23,6 +24,10 @@ import multiprocessing
 import queue
 
 import csv
+
+from cloudant.client import Cloudant
+import cloudant
+
 
 HTTPResponse = requests.packages.urllib3.response.HTTPResponse
 orig_HTTPResponse__init__ = HTTPResponse.__init__
@@ -55,6 +60,87 @@ def new_HTTPSConnection_connect(self):
         pass
 HTTPSConnection.connect = new_HTTPSConnection_connect
 
+
+##################################################################
+##################################################################
+
+
+def load_work_on_to_couch(ctx, work_list_of_dict):
+    work_database_name = 'work'
+
+    threads = list()
+    for i in work_list_of_dict:
+        i['_id'] = i['fqdn']
+
+        x = threading.Thread(target=couchdb_put_obj,
+                             args=(ctx, work_database_name, i,),
+                             daemon=True)
+        threads.append(x)
+        x.start()
+
+    for index, thread in enumerate(threads):
+        thread.join()
+
+
+def couchdb_initialize(ctx):
+    # Create client using auto_renew to automatically renew expired cookie auth
+    print(ctx['couch_user'], ctx['couch_pw'], ctx['couch_url'])
+
+    client = cloudant.client.Cloudant(ctx['couch_user'], ctx['couch_pw'], url=ctx['couch_url'],
+                                      connect=True,
+                                      auto_renew=True)
+    ctx['couch_client'] = client
+    return True
+
+def couchdb_close(ctx):
+    if not 'couch_client' in ctx:
+        print("CouchDB not properly initialized")
+        return None
+    ctx['couch_client'].disconnect()
+    del ctx['couch_client']
+
+def couchdb_put_obj(ctx, database, obj):
+    if not 'couch_client' in ctx:
+        if not couchdb_initialize(ctx):
+            print("CouchDB not properly initialized")
+            return None
+
+    try:
+        my_database = ctx['couch_client'][database]
+
+        # Create a document using the Database API
+        my_document = my_database.create_document(obj)
+    except:
+        pass
+        return False
+
+    return True
+
+def couchdb_update_docs(ctx, database, search_key, comparator, search_value, update_key, update_value):
+    if not 'couch_client' in ctx:
+        if not couchdb_initialize(ctx):
+            print("CouchDB not properly initialized")
+            return None
+
+    my_database = ctx['couch_client'][database]
+    with cloudant.document.Document(my_database, search_value) as document:
+        document[update_key] = update_value
+
+
+def couchdb_get_docs(ctx, database, key, comparator, value):
+    if not 'couch_client' in ctx:
+        if not couchdb_initialize(ctx):
+            print("CouchDB not properly initialized")
+            return None
+
+    my_database = ctx['couch_client'][database]
+    selector = {}
+    selector[key] = {}
+    selector[key][comparator] = value
+    query = cloudant.query.Query(my_database, selector=selector)
+
+    resp_docs = query()['docs']
+    return resp_docs
 
 
 def set_cert_api(cert_api):
@@ -504,6 +590,16 @@ def load_file_into_array(filename, emptylines=True):
         return open(filename, "r", encoding='utf-8').read().splitlines()
     else:
         return filter(None, open(filename, "r", encoding='utf-8').read().splitlines())
+
+def load_file_into_array_of_dict(filename):
+    res = []
+
+    for elem in filter(None, open(filename, "r", encoding='utf-8').read().splitlines()):
+        e = {}
+        e['fqdn']   = elem
+        e['status'] = 'todo'
+        res.append(e)
+    return res
 
 
 def load_static_domain_prefixes(base_fqdn):

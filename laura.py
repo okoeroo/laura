@@ -22,6 +22,8 @@ import requests
 import requests_cache
 import json
 
+from cloudant.client import Cloudant
+
 import pprint
 
 #################
@@ -41,7 +43,7 @@ import argparse
 def write_line_to_file(filename, msg):
     with open(filename, 'a+') as f:
         f.write(msg)
-        f.write('\n\r')
+        f.write('\n')
         f.flush()
 
 
@@ -50,18 +52,43 @@ PATH = os.path.dirname(os.path.realpath(__file__)) + '/'
 
 # Parser
 parser = argparse.ArgumentParser("laura.py")
-parser.add_argument("--cs-apikey",   dest='cs_apikey', help="CertSpotter API Key", type=str)
-parser.add_argument("--fb-apikey",   dest='fb_apikey', help="Facebook App API Key", type=str)
-parser.add_argument("--input",       dest='input', help="Input list", type=str)
-parser.add_argument("--error-file",  dest='error_file', help="List filled with domain names resulting in errors.", type=str)
-parser.add_argument('--output-dir',  dest='output_dir', help="Output directory with JSON files", type=str)
-parser.add_argument('--output-json', dest='output_json', help="Output JSON", type=str)
-parser.add_argument('--cert-api',    dest='cert_api', help="URL to the Certificate Hunter API. Example: http://localhost:5000/certificate", type=str)
+parser.add_argument("--cs-apikey",      dest='cs_apikey',
+                                        help="CertSpotter API Key",
+                                        default=None,
+                                        type=str)
+parser.add_argument("--fb-apikey",      dest='fb_apikey',
+                                        help="Facebook App API Key",
+                                        default=None,
+                                        type=str)
+parser.add_argument("--input",          dest='input', 
+                                        help="Input list", 
+                                        type=str)
+parser.add_argument("--error-file",     dest='error_file', help="List filled with domain names resulting in errors.", type=str)
+parser.add_argument('--output-dir',     dest='output_dir', help="Output directory with JSON files", type=str)
+parser.add_argument('--output-json',    dest='output_json', help="Output JSON", type=str)
+parser.add_argument('--cert-api',       dest='cert_api', help="URL to the Certificate Hunter API. Example: http://localhost:5000/certificate", type=str)
+parser.add_argument('--couch-url',      dest='couch_url', 
+                                        help='CouchDB URL', 
+                                        default='http://127.0.0.1:5984',
+                                        type=str)
+parser.add_argument('--couch-db',       dest='couch_db', help='CouchDB database', type=str)
+parser.add_argument('--couch-user',     dest='couch_user', help='CouchDB user', type=str)
+parser.add_argument('--couch-pw',       dest='couch_pw', help='CouchDB password', type=str)
 args = parser.parse_args()
 
 if not args.input:
     print("No input")
     sys.exit(1)
+
+ctx = {}
+ctx['couch_db']   = args.couch_db
+ctx['couch_url']  = args.couch_url
+ctx['couch_user'] = args.couch_user
+ctx['couch_pw']   = args.couch_pw
+ctx['fb_apikey']  = args.fb_apikey
+ctx['cs_apikey']  = args.cs_apikey
+ctx['cert_api']   = args.cert_api
+
 
 
 
@@ -79,23 +106,33 @@ else:
 
 
 # Lock and load the input for processing
-domains_to_search = oscarlib.load_file_into_array(args.input, emptylines=False)
+## domains_to_search = oscarlib.load_file_into_array(args.input, emptylines=False)
+domains_to_search_as_a_of_dict = oscarlib.load_file_into_array_of_dict(args.input)
+
+# Hot fix
+for i in domains_to_search_as_a_of_dict:
+    i['_id'] = i['fqdn']
+
+    # Purify input - valid names only
+    if not oscarlib.is_valid_hostname(i['fqdn']):
+        # Write to error file, when such destination is set
+        if args.error_file is not None:
+            print("Error: \"{}\" is not a valid hostname to hunt".format(i['fqdn']))
+        continue
+
+# Load all data into CouchDB
+#oscarlib.load_work_on_to_couch(ctx, domains_to_search_as_a_of_dict)
+
+#pprint.pprint(domains_to_search_as_a_of_dict)
 
 print("Scan started for:")
 print("=========")
 
-pprint.pprint(domains_to_search)
+sys.exit(0)
 
 total_results_list = []
 
 for d in domains_to_search:
-    # Is this a proper domain?
-    if not oscarlib.is_valid_hostname(d):
-        # Write to error file, when such destination is set
-        if args.error_file is not None:
-            write_line_to_file(args.error_file, d)
-        continue
-
     try:
         list_per_domain = []
         list_per_domain.append(d)
