@@ -16,3 +16,13 @@ pip install python-dateutil
 
 pip install asn1crypto cert_human
 
+# Now requires CouchDB
+A CouchDB is now required.
+
+# How it works
+1. laura-load.py
+2. laura-create-work.py
+3. laura-process.py
+4. ...
+
+
