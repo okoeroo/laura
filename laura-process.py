@@ -35,9 +35,6 @@ parser.add_argument("--fb-apikey",      dest='fb_apikey',
                                         help="Facebook App API Key",
                                         default=None,
                                         type=str)
-parser.add_argument("--input",          dest='input', 
-                                        help="Input list", 
-                                        type=str)
 parser.add_argument("--error-file",     dest='error_file', help="List filled with domain names resulting in errors.", type=str)
 parser.add_argument('--output-dir',     dest='output_dir', help="Output directory with JSON files", type=str)
 parser.add_argument('--output-json',    dest='output_json', help="Output JSON", type=str)
@@ -50,32 +47,13 @@ parser.add_argument('--couch-user',     dest='couch_user', help='CouchDB user', 
 parser.add_argument('--couch-pw',       dest='couch_pw', help='CouchDB password', type=str)
 args = parser.parse_args()
 
-if not args.input:
-    print("No input")
-    sys.exit(1)
 
 ctx = {}
 ctx['couch_url']    = args.couch_url
 ctx['couch_user']   = args.couch_user
 ctx['couch_pw']     = args.couch_pw
-ctx['fb_apikey']    = args.fb_apikey
-ctx['cs_apikey']    = args.cs_apikey
-ctx['cert_api']     = args.cert_api
 ctx['error_file']   = args.error_file
 
-
-if not args.cert_api:
-    print("Using default certificate API backend")
-    oscarlib.set_cert_api("http://localhost:5000/certificate")
-else:
-    print("Using \"{}\" as certificate API backend".format(args.cert_api))
-    oscarlib.set_cert_api(args.cert_api)
-
-def on_fb_error(ctx, domain):
-    print("Error: can't process {}".format(domain))
-    # Write to error file, when such destination is set
-    if 'error_file' in ctx: 
-        write_line_to_file(ctx['error_file'], domain)
 
 def create_work_list_per_domain(ctx, process_uuid, domain):
     # List of domains
@@ -133,7 +111,7 @@ def create_work_list_per_domain(ctx, process_uuid, domain):
 #    total_results_list.extend(results)
 
 
-def create_dns_work(ctx):
+def process_dns_work(ctx):
     # 1. Fetch 'work' from the couch, change status to processing
     # 2. Enrich the lists.
     # 3. Store it in 'dns_work'
@@ -144,7 +122,7 @@ def create_dns_work(ctx):
 
     # Fetching a work list
     docs = oscarlib.couchdb_get_docs(ctx,
-                                     'work',
+                                     'dns_work',
                                      'status',
                                      '$eq',
                                      'todo',
@@ -152,14 +130,16 @@ def create_dns_work(ctx):
                                      skip=0)
     # Change status to processing
     for i in docs:
-        print(i['fqdn'])
-        oscarlib.couchdb_update_docs(ctx,
-                                     'work',
-                                     'fqdn',
-                                     '$eq',
-                                     i['fqdn'],
-                                     'status',
-                                     process_uuid)
+        pprint.pprint(i)
+
+    return
+#        oscarlib.couchdb_update_docs(ctx,
+#                                     'work',
+#                                     'fqdn',
+#                                     '$eq',
+#                                     i['fqdn'],
+#                                     'status',
+#                                     process_uuid)
 
     # Fetching a work list
     docs = oscarlib.couchdb_get_docs(ctx,
@@ -177,7 +157,7 @@ def create_dns_work(ctx):
     return
 
 # Create all the stuff
-create_dns_work(ctx)
+process_dns_work(ctx)
 sys.exit(1)
 
 
