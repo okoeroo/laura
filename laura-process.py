@@ -79,12 +79,28 @@ def process_dns_work(ctx, batch_size):
                                      skip=0)
     # Change status to processing
     for domain_doc in docs:
-        pprint.pprint(domain_doc)
-        m = oscarlib.my_threading(oscarlib.dns_resolve_all_r_type, domain_doc['domainlist'])
-        results = m.get_results()
-        pprint.pprint(results, indent=4)
+        print("=====")
+        for fqdn in domain_doc['domainlist']:
+            m = oscarlib.dns_resolve_all_r_type(fqdn)
+
+            o = {}
+            o['domain'] = domain_doc['_id']
+            o['fqdn'] = fqdn
+            o['rr'] = m
+            oscarlib.couchdb_put_obj(ctx, 'laura_discovered_dns_rr', o)
 
     return
+#
+#
+#        m = oscarlib.my_threading(oscarlib.dns_resolve_all_r_type, domain_doc['domainlist'])
+#        results = m.get_results()
+#        pprint.pprint(results, indent=4)
+#
+#        continue
+#
+#        pprint.pprint(domain_doc)
+#
+#    return
 #        oscarlib.couchdb_update_docs(ctx,
 #                                     'work',
 #                                     'fqdn',
@@ -92,21 +108,21 @@ def process_dns_work(ctx, batch_size):
 #                                     i['fqdn'],
 #                                     'status',
 #                                     process_uuid)
-
-    # Fetching a work list
-    docs = oscarlib.couchdb_get_docs(ctx,
-                                     'laura_loaded_research_domain',
-                                     'status',
-                                     '$eq',
-                                     process_uuid,
-                                     limit=100,
-                                     skip=0)
-    # Create list of FQDNs from the domain to hunt and store it on the Couch
-    for i in docs:
-        create_work_list_per_domain(ctx,
-                                    process_uuid,
-                                    i['fqdn'])
-    return
+#
+#    # Fetching a work list
+#    docs = oscarlib.couchdb_get_docs(ctx,
+#                                     'laura_loaded_research_domain',
+#                                     'status',
+#                                     '$eq',
+#                                     process_uuid,
+#                                     limit=100,
+#                                     skip=0)
+#    # Create list of FQDNs from the domain to hunt and store it on the Couch
+#    for i in docs:
+#        create_work_list_per_domain(ctx,
+#                                    process_uuid,
+#                                    i['fqdn'])
+#    return
 
 # Create all the stuff
 process_dns_work(ctx, args.batch_size)

@@ -110,7 +110,8 @@ def couchdb_put_obj(ctx, database, obj):
 
         # Create a document using the Database API
         my_document = my_database.create_document(obj)
-    except:
+    except Exception as e:
+        print(e)
         pass
         return False
 
@@ -781,40 +782,41 @@ def dns_resolve_r_type(fqdn, r_type):
                 tup['cname_follow'] = dns_resolve_r_type(tup['value'], r_type)
 
             elif r_type == 'AAAA':
-                asn = ASNLookUp().asn_get(tup['value'])
-                if asn is not None:
-                    tup['asn'] = asn
-
                 # Reverse lookup
                 tup['ptr_follow'] = dns_resolve_r_type(IPAddress(tup['value']).reverse_dns, 'PTR')
 
-                # TCP test
-                tup['connection'] = tcp_probe_range(tup['value'])
-
-                # Using the TCP test output - check website and recurse HTTP redirects
-                if tup['connection']['80'] == True:
-                    tup['connection']['http'] = http_probe('http://' + results['fqdn'])
-
-                if tup['connection']['443'] == True:
-                    tup['connection']['https'] = http_probe('https://' + results['fqdn'])
+#                asn = ASNLookUp().asn_get(tup['value'])
+#                if asn is not None:
+#                    tup['asn'] = asn
+#
+#
+#                # TCP test
+#                tup['connection'] = tcp_probe_range(tup['value'])
+#
+#                # Using the TCP test output - check website and recurse HTTP redirects
+#                if tup['connection']['80'] == True:
+#                    tup['connection']['http'] = http_probe('http://' + results['fqdn'])
+#
+#                if tup['connection']['443'] == True:
+#                    tup['connection']['https'] = http_probe('https://' + results['fqdn'])
 
             elif r_type == 'A':
-                asn = ASNLookUp().asn_get(tup['value'])
-                if asn is not None:
-                    tup['asn'] = asn
-
                 # Reverse lookup
                 tup['ptr_follow'] = dns_resolve_r_type(IPAddress(tup['value']).reverse_dns, 'PTR')
-
-                # TCP test
-                tup['connection'] = tcp_probe_range(tup['value'])
-
-                # Using the TCP test output - check website and recurse HTTP redirects
-                if tup['connection']['80'] == True:
-                    tup['connection']['http'] = http_probe('http://' + results['fqdn'])
-
-                if tup['connection']['443'] == True:
-                    tup['connection']['https'] = http_probe('https://' + results['fqdn'])
+#
+#                asn = ASNLookUp().asn_get(tup['value'])
+#                if asn is not None:
+#                    tup['asn'] = asn
+#
+#                # TCP test
+#                tup['connection'] = tcp_probe_range(tup['value'])
+#
+#                # Using the TCP test output - check website and recurse HTTP redirects
+#                if tup['connection']['80'] == True:
+#                    tup['connection']['http'] = http_probe('http://' + results['fqdn'])
+#
+#                if tup['connection']['443'] == True:
+#                    tup['connection']['https'] = http_probe('https://' + results['fqdn'])
 
             elif r_type == 'MX':
                 if not len(str(r_data).split()) == 2:
