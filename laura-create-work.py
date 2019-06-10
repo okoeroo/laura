@@ -111,7 +111,7 @@ def create_work_list_per_domain(ctx, process_uuid, domain):
     work_list['domainlist']         = list_per_domain
 
     # Store DNS work
-    oscarlib.couchdb_put_obj(ctx, 'dns_work', work_list)
+    oscarlib.couchdb_put_obj(ctx, 'laura_discovered_fqdn', work_list)
 
     print("Added info for {} as process UUID {}".format(domain, process_uuid))
     return True
@@ -128,7 +128,7 @@ def create_dns_work(ctx, limit):
 
     # Fetching a work list
     docs = oscarlib.couchdb_get_docs(ctx,
-                                     'work',
+                                     'laura_loaded_research_domain',
                                      'status',
                                      '$eq',
                                      'todo',
@@ -138,7 +138,7 @@ def create_dns_work(ctx, limit):
     for i in docs:
         print(i['fqdn'])
         oscarlib.couchdb_update_docs(ctx,
-                                     'work',
+                                     'laura_loaded_research_domain',
                                      'fqdn',
                                      '$eq',
                                      i['fqdn'],
@@ -147,7 +147,7 @@ def create_dns_work(ctx, limit):
 
     # Fetching a work list
     docs = oscarlib.couchdb_get_docs(ctx,
-                                     'work',
+                                     'laura_loaded_research_domain',
                                      'status',
                                      '$eq',
                                      process_uuid,

@@ -65,9 +65,7 @@ HTTPSConnection.connect = new_HTTPSConnection_connect
 ##################################################################
 
 
-def load_work_on_to_couch(ctx, work_list_of_dict):
-    work_database_name = 'work'
-
+def load_work_on_to_couch(ctx, work_database_name, work_list_of_dict):
     threads = list()
     for i in work_list_of_dict:
         i['_id'] = i['fqdn']
@@ -1052,6 +1050,7 @@ def dns_resolve_all_r_type(fqdn):
     # The rest, without CNAME
     #types = [ 'CNAME', 'SOA', 'A', 'NS', 'MD', 'MF', 'CNAME5', 'MB', 'MG', 'MR', 'NULL', 'WKS', 'PTR', 'HINFO', 'MINFO', 'MX', 'TXT', 'RP', 'AFSDB', 'X25', 'ISDN', 'RT', 'NSAP', 'NSAP_PTR', 'SIG', 'KEY', 'PX', 'GPOS', 'AAAA', 'LOC', 'NXT', 'SRV', 'NAPTR', 'KX', 'CERT', 'A6', 'DNAME', 'OPT', 'APL', 'DS', 'SSHFP', 'IPSECKEY', 'RRSIG', 'NSEC', 'DNSKEY', 'DHCID', 'NSEC3', 'NSEC3PARAM', 'TLSA', 'HIP', 'CDS', 'CDNSKEY', 'CSYNC', 'SPF', 'UNSPEC', 'EUI48', 'EUI64', 'TKEY', 'TSIG', 'IXFR', 'AXFR', 'MAILB', 'MAILA', 'ANY', 'URI', 'CAA', 'AVC', 'TA', 'DLV' ]
     types = [ 'CNAME', 'SOA', 'A', 'NS', 'MD', 'MF', 'MB', 'MG', 'MR', 'NULL', 'WKS', 'PTR', 'HINFO', 'MINFO', 'MX', 'TXT', 'RP', 'AFSDB', 'X25', 'ISDN', 'RT', 'NSAP', 'SIG', 'KEY', 'PX', 'GPOS', 'AAAA', 'LOC', 'NXT', 'SRV', 'NAPTR', 'KX', 'CERT', 'A6', 'DNAME', 'OPT', 'APL', 'DS', 'SSHFP', 'IPSECKEY', 'RRSIG', 'NSEC', 'DNSKEY', 'DHCID', 'NSEC3', 'NSEC3PARAM', 'TLSA', 'HIP', 'CDS', 'CDNSKEY', 'CSYNC', 'SPF', 'UNSPEC', 'EUI48', 'EUI64', 'TKEY', 'TSIG', 'IXFR', 'AXFR', 'MAILB', 'MAILA', 'ANY', 'URI', 'CAA', 'AVC', 'TA', 'DLV' ]
+
     types = [   'CNAME', 'SOA', 'A', 'AAAA', 'NS', \
                 'MX', 'TXT', 'CAA', 'SRV', \
                 'DS', 'NSEC3', 'NSEC', 'RRSIG' ]

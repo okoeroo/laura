@@ -71,7 +71,7 @@ def process_dns_work(ctx, batch_size):
 
     # Fetching a work list
     docs = oscarlib.couchdb_get_docs(ctx,
-                                     'dns_work',
+                                     'laura_discovered_fqdn',
                                      'status',
                                      '$eq',
                                      'todo',
@@ -95,7 +95,7 @@ def process_dns_work(ctx, batch_size):
 
     # Fetching a work list
     docs = oscarlib.couchdb_get_docs(ctx,
-                                     'work',
+                                     'laura_loaded_research_domain',
                                      'status',
                                      '$eq',
                                      process_uuid,

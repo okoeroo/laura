@@ -61,6 +61,8 @@ for i in domains_to_search_as_a_of_dict:
 
 # Load all data into CouchDB
 print("Loading work on the couch...")
-oscarlib.load_work_on_to_couch(ctx, domains_to_search_as_a_of_dict)
+oscarlib.load_work_on_to_couch(ctx,
+                               'laura_loaded_research_domain',
+                               domains_to_search_as_a_of_dict)
 print("Done.")
 
