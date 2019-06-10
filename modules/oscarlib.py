@@ -129,7 +129,7 @@ def couchdb_update_docs(ctx, database, search_key, comparator, search_value, upd
         document[update_key] = update_value
 
 
-def couchdb_get_docs(ctx, database, key, comparator, value, limit=None, skip=None):
+def couchdb_get_docs(ctx, database, key, comparator, value, limit=10, skip=0):
     if not 'couch_client' in ctx:
         if not couchdb_initialize(ctx):
             print("CouchDB not properly initialized")
@@ -675,7 +675,10 @@ def ct_facebook_paged_query(url, base_fqdn, scopecreep, apikey):
 def ct_facebook_search_domain_for_more_hostnames(base_fqdn, scopecreep, apikey):
     # This interface requires an API Key
     if apikey is None:
+        print("Error: no API key provided")
         return None
+
+    print("---", base_fqdn)
 
     # Input validation
     if not is_valid_hostname(base_fqdn):
