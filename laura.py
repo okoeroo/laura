@@ -71,6 +71,11 @@ else:
     print("Using \"{}\" as certificate API backend".format(args.cert_api))
     oscarlib.set_cert_api(args.cert_api)
 
+def on_fb_error(ctx, domain):
+    print("Error: can't process {}".format(domain))
+    # Write to error file, when such destination is set
+    if 'error_file' in ctx: 
+        write_line_to_file(ctx['error_file'], domain)
 
 def create_work_list_per_domain(ctx, process_uuid, domain):
     # List of domains
@@ -82,18 +87,20 @@ def create_work_list_per_domain(ctx, process_uuid, domain):
     list_per_domain = list_per_domain + \
             oscarlib.load_static_domain_prefixes(domain)
 
-    # Use the Facebook Developer API to search the Certificate Transparency lists
-    fb_search_d_f_m_h_results = \
-            oscarlib.ct_facebook_search_domain_for_more_hostnames(domain,
-                                                                  False,
-                                                                  ctx['fb_apikey'])
+    try:
+        # Use the Facebook Developer API to search the Certificate Transparency lists
+        fb_search_d_f_m_h_results = \
+                oscarlib.ct_facebook_search_domain_for_more_hostnames(domain,
+                                                                      False,
+                                                                      ctx['fb_apikey'])
+    except:
+        on_fb_error(ctx, domain)
+        return
+
     # Report on Error, probably overloading the API again
     if fb_search_d_f_m_h_results is None:
-        print("Error: can't process {}".format(domain))
-        # Write to error file, when such destination is set
-        if 'error_file' in ctx: 
-            write_line_to_file(ctx['error_file'], domain)
-            return
+        on_fb_error(ctx, domain)
+        return
 
     # Extend list with Facebook API results
     list_per_domain = list_per_domain + fb_search_d_f_m_h_results
