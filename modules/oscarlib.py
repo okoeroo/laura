@@ -86,7 +86,9 @@ def couchdb_initialize(ctx):
     # Create client using auto_renew to automatically renew expired cookie auth
     print(ctx['couch_user'], ctx['couch_pw'], ctx['couch_url'])
 
-    client = cloudant.client.Cloudant(ctx['couch_user'], ctx['couch_pw'], url=ctx['couch_url'],
+    client = cloudant.client.Cloudant(ctx['couch_user'],
+                                      ctx['couch_pw'], 
+                                      url=ctx['couch_url'],
                                       connect=True,
                                       auto_renew=True)
     ctx['couch_client'] = client
@@ -127,7 +129,7 @@ def couchdb_update_docs(ctx, database, search_key, comparator, search_value, upd
         document[update_key] = update_value
 
 
-def couchdb_get_docs(ctx, database, key, comparator, value):
+def couchdb_get_docs(ctx, database, key, comparator, value, limit=None, skip=None):
     if not 'couch_client' in ctx:
         if not couchdb_initialize(ctx):
             print("CouchDB not properly initialized")
@@ -139,7 +141,7 @@ def couchdb_get_docs(ctx, database, key, comparator, value):
     selector[key][comparator] = value
     query = cloudant.query.Query(my_database, selector=selector)
 
-    resp_docs = query()['docs']
+    resp_docs = query(limit=limit, skip=skip)['docs']
     return resp_docs
 
 

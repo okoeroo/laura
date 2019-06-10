@@ -2,27 +2,19 @@
 
 ### System imports
 
-import dns.resolver
-from datetime import tzinfo, timedelta, datetime
-import time
-import uuid
 import sys
 import os
-import threading
-import ipaddress
-from multiprocessing import Process, Queue, JoinableQueue
-import warnings
-from ipwhois.net import Net
-from ipwhois.asn import IPASN
-from pprint import pprint
-import re
-import sqlite3
-from urllib.request import urlopen
-import requests
-import requests_cache
-import json
+import argparse
 
-from cloudant.client import Cloudant
+
+#################
+# Private imports
+modpath = "".join([os.path.dirname(os.path.realpath(__file__)), "/", "modules"])
+sys.path.append(modpath)
+
+import oscarlib
+#################
+
 
 import pprint
 
@@ -46,9 +38,6 @@ def write_line_to_file(filename, msg):
         f.write('\n')
         f.flush()
 
-
-# Init
-PATH = os.path.dirname(os.path.realpath(__file__)) + '/'
 
 # Parser
 parser = argparse.ArgumentParser("laura.py")
@@ -81,7 +70,6 @@ if not args.input:
     sys.exit(1)
 
 ctx = {}
-ctx['couch_db']   = args.couch_db
 ctx['couch_url']  = args.couch_url
 ctx['couch_user'] = args.couch_user
 ctx['couch_pw']   = args.couch_pw
@@ -89,13 +77,6 @@ ctx['fb_apikey']  = args.fb_apikey
 ctx['cs_apikey']  = args.cs_apikey
 ctx['cert_api']   = args.cert_api
 
-
-
-
-#pprint.pprint(oscarlib.req_get_inner('https://', "oscar.koeroo.net"))
-#pprint.pprint(oscarlib.req_get_inner('https://', "www.kpn.com"))
-#pprint.pprint(oscarlib.req_get_inner('https://', "expired.badssl.com"))
-#sys.exit(0)
 
 if not args.cert_api:
     print("Using default certificate API backend")
@@ -105,30 +86,18 @@ else:
     oscarlib.set_cert_api(args.cert_api)
 
 
-# Lock and load the input for processing
-## domains_to_search = oscarlib.load_file_into_array(args.input, emptylines=False)
-domains_to_search_as_a_of_dict = oscarlib.load_file_into_array_of_dict(args.input)
+def create_dns_work():
+    # 1. Fetch 'work' from the couch.
+    # 2. Enrich the lists.
+    # 3. Store it in 'dns_work'
+    # 4. Update 'work' from 'todo' to 'done'
 
-# Hot fix
-for i in domains_to_search_as_a_of_dict:
-    i['_id'] = i['fqdn']
+    oscarlib.couchdb_get_docs(ctx,
+                              'work',
+                              'status',
+                              '$eq',
+                              'todo')
 
-    # Purify input - valid names only
-    if not oscarlib.is_valid_hostname(i['fqdn']):
-        # Write to error file, when such destination is set
-        if args.error_file is not None:
-            print("Error: \"{}\" is not a valid hostname to hunt".format(i['fqdn']))
-        continue
-
-# Load all data into CouchDB
-#oscarlib.load_work_on_to_couch(ctx, domains_to_search_as_a_of_dict)
-
-#pprint.pprint(domains_to_search_as_a_of_dict)
-
-print("Scan started for:")
-print("=========")
-
-sys.exit(0)
 
 total_results_list = []
 
