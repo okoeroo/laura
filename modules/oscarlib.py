@@ -8,6 +8,7 @@ import os
 import json
 import re
 import pprint
+import ipaddress
 
 import sqlite3
 import socket
@@ -224,6 +225,22 @@ def jsonify_certificate(cert):
     return results
 
 
+def http_probe_extract_recursions(r):
+    d = {}
+    l = []
+    f = ""
+
+    l.append(r['url'])
+    r1 = r
+    while 'recurse' in r1:
+        r1 = r1['recurse']
+        l.append(r1['url'])
+        f = r1['url']
+
+    d['recursions'] = " -> ".join(l)
+    d['destination'] = f
+    return d
+
 def http_probe(url, recurse=1):
 #    expire_after = timedelta(minutes=15)
 #    requests_cache.install_cache('demo_cache1', expire_after=expire_after)
@@ -318,7 +335,6 @@ def http_probe(url, recurse=1):
 
 
 def tcp_probe(ipaddr, portnum, timeout=5):
-    s = socket.socket()
     if isinstance(portnum, str):
         p = int(portnum)
     elif isinstance(portnum, int):
@@ -326,9 +342,20 @@ def tcp_probe(ipaddr, portnum, timeout=5):
     else:
         return None
 
+
+    # Try to check IP address, accept the exception to go higher
+    ip = ipaddress.ip_address(ipaddr)
     try:
-        s = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+        if ip.version == 4:
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        elif ip.version == 6:
+            s = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+        else:
+            raise Exception
+
         s.settimeout(timeout)
+
+        #print(ipaddr, portnum, 'connecting...')
         res = s.connect_ex((ipaddr, portnum))
         if res == 0:
             verdict = True
@@ -338,6 +365,7 @@ def tcp_probe(ipaddr, portnum, timeout=5):
         verdict = False
     finally:
         s.close()
+        #print(ipaddr, portnum, 'closed')
 
     return verdict
 
@@ -360,10 +388,35 @@ def tcp_probe(ipaddr, portnum, timeout=5):
 # 993: IMAPS
 # 995: POPS
 # 8080: HTTP-Alt
+
+
+def tcp_probe_dict(d):
+    d['port_open'] = tcp_probe(d['ipaddr'], d['portnum'], d['timeout'])
+    return d
+
 def tcp_probe_range(ipaddr, portnums=[21,22,23,25,80,110,143,389,443,631,993,995,8080], timeout=3):
+
+    # Non threaded
+    # res = {}
+    # for i in portnums:
+    #     res[str(i)] = tcp_probe(ipaddr, i, timeout)
+
+    # Threaded
+    l = []
+    for p in portnums:
+        d = {}
+        d['ipaddr'] = ipaddr
+        d['portnum'] = p
+        d['timeout'] = timeout
+        l.append(d)
+
+    m = my_threading(tcp_probe_dict, l)
+    results = m.get_results()
+
     res = {}
-    for i in portnums:
-        res[str(i)] = tcp_probe(ipaddr, i, timeout)
+    for r in results:
+        res[str(r['portnum'])] = r['port_open']
+
     return res
 
 
@@ -447,6 +500,8 @@ class ASNLookUp(object):
 
 class my_threading(object):
     def __init__(self, func, list_of_work):
+        self.num_threads = 32
+
         self.q = queue.Queue()
         self.r = []
         self.func = func
@@ -469,11 +524,11 @@ class my_threading(object):
                 break
 
             res = item['func'](item['data'])
-            self.r.extend(res)
+            self.r.append(res)
             self.q.task_done()
 
     def para(self):
-        for i in range(32):
+        for i in range(self.num_threads):
             t = threading.Thread(target=self.worker)
             t.start()
             self.threads.append(t)
@@ -483,7 +538,7 @@ class my_threading(object):
         self.q.join()
 
         # stop workers
-        for i in range(32):
+        for i in range(self.num_threads):
             self.q.put(None)
         for t in self.threads:
             t.join()

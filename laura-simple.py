@@ -17,6 +17,13 @@ import oscarlib
 #################
 
 
+#u = "12move.nl"
+#r = oscarlib.http_probe(u)
+#s = oscarlib.http_probe_extract_recursions(r)
+#print(s)
+#sys.exit(1)
+
+
 ##### MAIN #####
 def write_line_to_file(filename, msg):
     with open(filename, 'a+') as f:
@@ -66,7 +73,7 @@ cnt = 0
 print("Loading work in memory...")
 for i in domains_to_search_as_a_of_dict:
 #    cnt += 1
-#    if cnt > 100:
+#    if cnt > 500:
 #        break
 
 
@@ -83,26 +90,74 @@ for i in domains_to_search_as_a_of_dict:
         if r_A_base['error'] == 'NOERROR':
             i['first_A_base'] = r_A_base['rrset'][0]['value']
 
+            # Check TCP
+            tcp_probe = oscarlib.tcp_probe_range(i['first_A_base'])
+            i['first_A_base_tcp_probe'] = tcp_probe
+            print(tcp_probe)
+
+            if tcp_probe['80'] == True:
+                r = oscarlib.http_probe('http://' + i['fqdn'])
+                s = oscarlib.http_probe_extract_recursions(r)
+
+                i['first_A_base_http_probe']           = r
+                i['first_A_base_http_probe_endpoint']  = 'http://' + i['fqdn']
+                i['first_A_base_http_probe_recursion'] = s
+
+            if tcp_probe['443'] == True:
+                r = oscarlib.https_probe('https://' + i['fqdn'])
+                s = oscarlib.https_probe_extract_recursions(r)
+
+                i['first_A_base_https_probe']           = r
+                i['first_A_base_https_probe_endpoint']  = 'https://' + i['fqdn']
+                i['first_A_base_https_probe_recursion'] = s
+
         # Check for A for www.base
         r_A_www_base = oscarlib.dns_resolve_r_type('www.' + i['fqdn'], 'A')
         if r_A_www_base['error'] == 'NOERROR':
             i['first_A_www_base'] = r_A_www_base['rrset'][0]['value']
+
+            # Check TCP
+            tcp_probe = oscarlib.tcp_probe_range(i['first_A_www_base'])
+            i['first_A_www_base_tcp_probe'] = tcp_probe
+
+            if tcp_probe['80'] == True:
+                r = oscarlib.http_probe('http://www.' + i['fqdn'])
+                s = oscarlib.http_probe_extract_recursions(r)
+
+                i['first_A_www_base_http_probe']           = r
+                i['first_A_www_base_http_probe_endpoint']  = 'http://www.' + i['fqdn']
+                i['first_A_www_base_http_probe_recursion'] = s
+
+            if tcp_probe['443'] == True:
+                r = oscarlib.https_probe('https://www.' + i['fqdn'])
+                s = oscarlib.https_probe_extract_recursions(r)
+
+                i['first_A_www_base_https_probe']           = r
+                i['first_A_www_base_https_probe_endpoint']  = 'https://www.' + i['fqdn']
+                i['first_A_www_base_https_probe_recursion'] = s
 
         # Check for MX
         r_MX_base = oscarlib.dns_resolve_r_type(i['fqdn'], 'MX')
         if r_MX_base['error'] == 'NOERROR':
             i['first_MX_host'] = r_MX_base['rrset'][0]['mx_host']
 
+            # Check TCP
+            rr_mx_host = oscarlib.dns_resolve_r_type(i['first_MX_host'], 'A')
+            if rr_mx_host['error'] == 'NOERROR':
+                tcp_probe = oscarlib.tcp_probe_range(rr_mx_host['rrset'][0]['value'])
+                i['first_MX_host_tcp_probe'] = tcp_probe
+
+
 
 ### Write output
 csv_file = open(ctx['output_file'], mode='w')
 
-fieldnames = ['fqdn', 'error', 'first_NS', 'first_A_base', 'first_A_www_base', 'first_MX_base']
+fieldnames = ['fqdn', 'error', 'first_NS', 'first_A_base', 'first_A_base_tcp_probe', 'first_A_www_base', 'first_A_www_base_tcp_probe', 'first_MX_base', 'first_MX_base_tcp_probe']
 csv_writer = csv.writer(csv_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
 #csv_writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
 
 # Write header
-csv_writer.writerow('fqdn', 'error', 'first_NS', 'first_A_base', 'first_A_www_base', 'first_MX_base')
+csv_writer.writerow(fieldnames)
 
 for i in domains_to_search_as_a_of_dict:
     if 'error' not in i:
@@ -122,8 +177,18 @@ for i in domains_to_search_as_a_of_dict:
     else:
         l.append("")
 
+    if 'first_A_base_tcp_probe' in i:
+        l.append(i['first_A_base_tcp_probe'])
+    else:
+        l.append("")
+
     if 'first_A_www_base' in i:
         l.append(i['first_A_www_base'])
+    else:
+        l.append("")
+
+    if 'first_A_www_base_tcp_probe' in i:
+        l.append(i['first_A_www_base_tcp_probe'])
     else:
         l.append("")
 
@@ -131,6 +196,12 @@ for i in domains_to_search_as_a_of_dict:
         l.append(i['first_MX_base'])
     else:
         l.append("")
+
+    if 'first_MX_base_tcp_probe' in i:
+        l.append(i['first_MX_base_tcp_probe'])
+    else:
+        l.append("")
+
 
     csv_writer.writerow(l)
 
