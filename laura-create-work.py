@@ -82,22 +82,23 @@ def create_work_list_per_domain(ctx, process_uuid, domain):
             oscarlib.load_static_domain_prefixes(domain)
 
     # Use the Facebook Developer API to search the Certificate Transparency lists
-    try:
-        fb_search_d_f_m_h_results = \
-                oscarlib.ct_facebook_search_domain_for_more_hostnames(domain,
-                                                                      False,
-                                                                      ctx['fb_apikey'])
-    except:
-        pass
-        on_fb_error(ctx, domain)
-
-    # Report on Error, probably overloading the API again
-    if fb_search_d_f_m_h_results is None:
-        on_fb_error(ctx, domain)
-        return False
-
-    # Extend list with Facebook API results
-    list_per_domain = list_per_domain + fb_search_d_f_m_h_results
+# TODO Fix CT logs
+#    try:
+#        fb_search_d_f_m_h_results = \
+#                oscarlib.ct_facebook_search_domain_for_more_hostnames(domain,
+#                                                                      False,
+#                                                                      ctx['fb_apikey'])
+#    except:
+#        pass
+#        on_fb_error(ctx, domain)
+#
+#    # Report on Error, probably overloading the API again
+#    if fb_search_d_f_m_h_results is None:
+#        on_fb_error(ctx, domain)
+#        return False
+#
+#    # Extend list with Facebook API results
+#    list_per_domain = list_per_domain + fb_search_d_f_m_h_results
 
     # Dedub the result
     list_per_domain = oscarlib.list_dedup(list_per_domain)
