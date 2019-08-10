@@ -33,16 +33,29 @@ def write_line_to_file(filename, msg):
 
 # Parser
 parser = argparse.ArgumentParser("laura-load.py")
-parser.add_argument("--input",          dest='input', 
-                                        help="Input list", 
+parser.add_argument("--input",          dest='input_file', 
+                                        help="Input, expecting a CSV file", 
                                         type=str)
+parser.add_argument("--input-column",   dest='input_col',
+                                        help="Input column, default is 0", 
+                                        default=0,
+                                        type=int)
+parser.add_argument("--input-delimeter",dest='input_del',
+                                        help="Input delimeter, default is ;", 
+                                        default=';',
+                                        type=str)
+parser.add_argument("--input-quotechar",dest='input_quote',
+                                        help="Input quote character, default is \"", 
+                                        default='"',
+                                        type=str)
+
 parser.add_argument("--output",         dest='output', 
                                         help="Output list", 
                                         type=str)
 parser.add_argument("--error-file",     dest='error_file', help="List filled with domain names resulting in errors.", type=str)
 args = parser.parse_args()
 
-if not args.input:
+if not args.input_file:
     print("No input")
     sys.exit(1)
 
@@ -51,21 +64,130 @@ if not args.output:
     sys.exit(1)
 
 ctx = {}
-ctx['input_file']  = args.input
+ctx['input_file']  = args.input_file
+ctx['input_col']   = args.input_col
+ctx['input_del']   = args.input_del
+ctx['input_quote'] = args.input_quote
 ctx['output_file'] = args.output
 
 
-# Lock and load the input for processing
-domains_to_search_as_a_of_dict = oscarlib.load_file_into_array_of_dict(args.input)
+# TCP Probe cache
+tcp_probe_cache = {}
 
-# Hot fix
-for i in domains_to_search_as_a_of_dict:
-    i['_id'] = i['fqdn']
 
-    # Purify input - valid names only
-    if not oscarlib.is_valid_hostname(i['fqdn']):
-        print("Error: \"{}\" is not a valid hostname to hunt".format(i['fqdn']))
+# Load CSV file and list the column into ctx['input_csv_selection']
+oscarlib.load_csv_file(ctx)
+
+# Setup administration - make array of dict
+ctx['work'] = []
+for line in ctx['input_csv_selection']:
+    item = {}
+    item['domain'] = line.strip()
+    ctx['work'].append(item)
+
+# Purify input - valid names only
+for work_item in ctx['work']:
+    if not oscarlib.is_valid_hostname(work_item['domain']):
+        print("Error: \"{}\" is not a valid hostname to hunt".format(work_item['domain']))
+        ctx['work'].remove(work_item)
         continue
+
+# Check if SOA records exists, and if so the NS records
+for work_item in ctx['work']:
+    # Record DNS stuff
+    work_item['DNS'] = {}
+
+    work_item['DNS']['SOA'] = oscarlib.dns_resolve_r_type(work_item['domain'], 'SOA')
+    print(work_item['domain'], 'SOA', work_item['DNS']['SOA']['error'])
+
+    # Got an error?
+    if work_item['DNS']['SOA']['error'] == 'NOERROR':
+        work_item['DNS']['NS'] = oscarlib.dns_resolve_r_type(work_item['domain'], 'NS')
+        print(work_item['domain'], 'NS', work_item['DNS']['NS']['error'])
+
+        # Got an error?
+        if work_item['DNS']['NS']['error'] == 'NOERROR':
+            work_item['DNS']['A']    = oscarlib.dns_resolve_r_type(work_item['domain'], 'A')
+            print(work_item['domain'], 'A', work_item['DNS']['A']['error'])
+
+            work_item['DNS']['AAAA'] = oscarlib.dns_resolve_r_type(work_item['domain'], 'AAAA')
+            print(work_item['domain'], 'AAAA', work_item['DNS']['AAAA']['error'])
+
+            work_item['DNS']['MX'] = oscarlib.dns_resolve_r_type(work_item['domain'], 'MX')
+            print(work_item['domain'], 'MX', work_item['DNS']['MX']['error'])
+
+            # Check TCP connectivity on A
+            if work_item['DNS']['A']['error'] == 'NOERROR':
+                for rr_set_item in work_item['DNS']['A']['rrset']:
+                    print(work_item['domain'], rr_set_item['value'])
+
+                    if rr_set_item['value'] in tcp_probe_cache:
+                        tcp_probe = tcp_probe_cache[rr_set_item['value']]
+                    else:
+                        tcp_probe = oscarlib.tcp_probe_range(rr_set_item['value'], [80, 443, 25])
+                        tcp_probe_cache[rr_set_item['value']] = tcp_probe
+
+                    rr_set_item['tcp_probe'] = tcp_probe
+
+                # Results from A check on tcp_probe, next is port 80 and 443 walks...
+                for rr_set_item in work_item['DNS']['A']['rrset']:
+                    print(work_item['domain'], "=>", 'A', "=>", rr_set_item['value'], "=>", rr_set_item['tcp_probe'])
+
+            # Check TCP connectivity on AAAA... but I don't have IPv6...
+
+            # Check TCP connectivity on MX
+#            Must extract MX to A records, then probe them
+#            if work_item['DNS']['MX']['error'] == 'NOERROR':
+#                for rr_set_item in work_item['DNS']['MX']['rrset']:
+#                    print(work_item['domain'], rr_set_item['value'])
+#
+#                    if rr_set_item['value'] in tcp_probe_cache:
+#                        tcp_probe = tcp_probe_cache[rr_set_item['value']]
+#                    else:
+#                        tcp_probe = oscarlib.tcp_probe_range(rr_set_item['value'], [80, 443, 25])
+#                        tcp_probe_cache[rr_set_item['value']] = tcp_probe
+#
+#                    rr_set_item['tcp_probe'] = tcp_probe
+#
+#                for rr_set_item in work_item['DNS']['MX']['rrset']:
+#                    print(work_item['domain'], "=>", 'MX', "=>", rr_set_item['value'], "=>", rr_set_item['tcp_probe'])
+
+
+#for work_item in ctx['work']:
+#    # Record DNS stuff
+#    print(work_item['domain'], work_item['DNS']['SOA'])
+
+#                tcp_probe_range
+#                for rr_res in work_item['DNS']['A'][
+#                oscarlib.tcp_probe_range
+#
+#            tcp_probe = oscarlib.tcp_probe_range(i['first_A_base'])
+#            i['first_A_base_tcp_probe'] = tcp_probe
+#            print(tcp_probe)
+#
+#            if tcp_probe['80'] == True:
+#                r = oscarlib.http_probe('http://' + i['fqdn'])
+#                s = oscarlib.http_probe_extract_recursions(r)
+#
+#                i['first_A_base_http_probe']           = r
+#                i['first_A_base_http_probe_endpoint']  = 'http://' + i['fqdn']
+#                i['first_A_base_http_probe_recursion'] = s
+#
+#            if tcp_probe['443'] == True:
+#                r = oscarlib.https_probe('https://' + i['fqdn'])
+#                s = oscarlib.https_probe_extract_recursions(r)
+#
+#
+#
+#tcp 80, 443
+#25
+#SPF DMARC
+#WHOIS
+
+
+sys.exit(1)
+
+
 
 cnt = 0
 

@@ -657,6 +657,22 @@ def load_file_into_array_of_dict(filename):
         res.append(e)
     return res
 
+###
+# Input:  ctx must have: input_del, input_col, input_file
+# Output: ctx['input_csv_selection'] array
+def load_csv_file(ctx):
+    f = open(ctx['input_file'])
+    csv_obj = csv.reader(f, delimiter=ctx['input_del'], quotechar=ctx['input_quote'])
+
+    ctx['input_csv_obj'] = csv_obj
+
+    single_list = []
+    for row in csv_obj:
+        col_num = ctx['input_col']
+        single_list.append(row[ctx['input_col']])
+
+    ctx['input_csv_selection'] = single_list
+
 
 def load_static_domain_prefixes(base_fqdn):
     results = []
