@@ -31,6 +31,8 @@ def write_line_to_file(filename, msg):
         f.write('\n')
         f.flush()
 
+oscarlib.set_cert_api("http://localhost:5000/certificate")
+
 # Parser
 parser = argparse.ArgumentParser("laura-load.py")
 parser.add_argument("--input",          dest='input_file', 
@@ -151,6 +153,7 @@ for work_item in ctx['work']:
                         rr_set_item['http_probe']['base_A_endpoint'] = base_A_endpoint
                         rr_set_item['http_probe']['base_A_result'] = r
                         rr_set_item['http_probe']['base_A_recursion'] = s
+
                         print(base_A_endpoint, "->", s)
 
                     # Probe for HTTPS
@@ -164,7 +167,10 @@ for work_item in ctx['work']:
                         rr_set_item['https_probe']['base_A_endpoint'] = base_A_endpoint
                         rr_set_item['https_probe']['base_A_result'] = r
                         rr_set_item['https_probe']['base_A_recursion'] = s
+
                         print(base_A_endpoint, "->", s)
+
+#                        sys.exit(1)
 
 
 

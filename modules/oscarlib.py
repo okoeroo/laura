@@ -13,8 +13,8 @@ import ipaddress
 import sqlite3
 import socket
 import requests
-from requests.adapters import HTTPAdapter
 import requests_cache
+from requests.adapters import HTTPAdapter
 import threading
 import cert_human
 
@@ -30,36 +30,36 @@ from cloudant.client import Cloudant
 import cloudant
 
 
-HTTPResponse = requests.packages.urllib3.response.HTTPResponse
-orig_HTTPResponse__init__ = HTTPResponse.__init__
-def new_HTTPResponse__init__(self, *args, **kwargs):
-    orig_HTTPResponse__init__(self, *args, **kwargs)
-    try:
-        self.peer_certificate = self._connection.peer_certificate
-    except AttributeError:
-        pass
-HTTPResponse.__init__ = new_HTTPResponse__init__
-
-HTTPAdapter = requests.adapters.HTTPAdapter
-orig_HTTPAdapter_build_response = HTTPAdapter.build_response
-def new_HTTPAdapter_build_response(self, request, resp):
-    response = orig_HTTPAdapter_build_response(self, request, resp)
-    try:
-        response.peer_certificate = resp.peer_certificate
-    except AttributeError:
-        pass
-    return response
-HTTPAdapter.build_response = new_HTTPAdapter_build_response
-
-HTTPSConnection = requests.packages.urllib3.connection.HTTPSConnection
-orig_HTTPSConnection_connect = HTTPSConnection.connect
-def new_HTTPSConnection_connect(self):
-    orig_HTTPSConnection_connect(self)
-    try:
-        self.peer_certificate = self.sock.connection.get_peer_certificate()
-    except AttributeError:
-        pass
-HTTPSConnection.connect = new_HTTPSConnection_connect
+#HTTPResponse = requests.packages.urllib3.response.HTTPResponse
+#orig_HTTPResponse__init__ = HTTPResponse.__init__
+#def new_HTTPResponse__init__(self, *args, **kwargs):
+#    orig_HTTPResponse__init__(self, *args, **kwargs)
+#    try:
+#        self.peer_certificate = self._connection.peer_certificate
+#    except AttributeError:
+#        pass
+#HTTPResponse.__init__ = new_HTTPResponse__init__
+#
+#HTTPAdapter = requests.adapters.HTTPAdapter
+#orig_HTTPAdapter_build_response = HTTPAdapter.build_response
+#def new_HTTPAdapter_build_response(self, request, resp):
+#    response = orig_HTTPAdapter_build_response(self, request, resp)
+#    try:
+#        response.peer_certificate = resp.peer_certificate
+#    except AttributeError:
+#        pass
+#    return response
+#HTTPAdapter.build_response = new_HTTPAdapter_build_response
+#
+#HTTPSConnection = requests.packages.urllib3.connection.HTTPSConnection
+#orig_HTTPSConnection_connect = HTTPSConnection.connect
+#def new_HTTPSConnection_connect(self):
+#    orig_HTTPSConnection_connect(self)
+#    try:
+#        self.peer_certificate = self.sock.connection.get_peer_certificate()
+#    except AttributeError:
+#        pass
+#HTTPSConnection.connect = new_HTTPSConnection_connect
 
 
 ##################################################################
@@ -237,13 +237,20 @@ def http_probe_extract_recursions(r):
         l.append(r1['url'])
         f = r1['url']
 
+    d['source']     = r['url']
     d['recursions'] = " -> ".join(l)
+
+    if f == "":
+        f = r['url']
     d['destination'] = f
+
+    d['has_recursion'] = d['destination'] != d['recursions']
     return d
 
 def http_probe(url, recurse=1):
 #    expire_after = timedelta(minutes=15)
 #    requests_cache.install_cache('demo_cache1', expire_after=expire_after)
+
 
     u = urlparse(url)
 
@@ -271,30 +278,34 @@ def http_probe(url, recurse=1):
 
 
     try:
-        # Disable warnings - because I also want to fetch insecure certificates
-        requests.packages.urllib3.disable_warnings()
-        urllib3.disable_warnings()
+        # HACK Disable warnings - because I also want to fetch insecure certificates
+        #requests.packages.urllib3.disable_warnings()
+        import urllib3
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
         r = requests.get(results['url'], allow_redirects=False, timeout=5, verify=False)
-        results['status_code'] = r.status_code
+        results['status_code']  = r.status_code
+        results['size']         = len(r.text)
+        results['headers']      = r.headers
 
-        if results['scheme'] == 'https':
-            try:
-                # Extract the certificate
-                # old: j_cert = jsonify_certificate(r.peer_certificate)
-                # old: results['certificate'] = j_cert
-
-                cert_api_post_data = { "host": results['fqdn'], "port": results['port'], "sni": results['fqdn'] }
-                try:
-                    cert_api_post_resp = requests.post(get_cert_api(), json=cert_api_post_data)
-                    j_body = cert_api_post_resp.json()
-                    results['tls'] = j_body
-                except Exception as e:
-                    results['tls'] = "error: {}".format(e)
-
-            except Exception as e:
-                print(e)
-
+#        if results['scheme'] == 'https':
+#            try:
+#                # Extract the certificate
+#                # old: j_cert = jsonify_certificate(r.peer_certificate)
+#                # old: results['certificate'] = j_cert
+#
+#                cert_api_post_data = { "host": results['fqdn'], "port": results['port'], "sni": results['fqdn'] }
+#                try:
+#                    cert_api_post_resp = requests.post(get_cert_api(), json=cert_api_post_data)
+#                    j_body = cert_api_post_resp.json()
+#                    results['tls'] = j_body
+#                except Exception as e:
+#                    results['tls'] = "error: {}".format(e)
+#
+#            except Exception as e:
+#                print(e)
+#
+#
         if r.status_code >= 300 and r.status_code < 400:
             # Redirect found, let's see if it has a Location
             if 'Location' in r.headers.keys():
@@ -309,7 +320,7 @@ def http_probe(url, recurse=1):
                     # Does it start with http(s)://
                     if results['location'].startswith('http://'):
                         results['absolute_location'] = results['location']
-                    if results['location'].startswith('https://'):
+                    elif results['location'].startswith('https://'):
                         results['absolute_location'] = results['location']
                     else:
                         # Relative URL. When it starts with a slash, make absolute by concat
@@ -330,7 +341,7 @@ def http_probe(url, recurse=1):
                     print("Recurse level", recurse, results['location'], results['absolute_location'])
                     results['recurse'] = http_probe(results['absolute_location'], recurse=recurse+1)
             else:
-                print("No Location header found")
+                print("Error: No Location header found, but with return code {}".format(r.status_code))
     except:
         pass
 
