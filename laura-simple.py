@@ -134,16 +134,38 @@ for work_item in ctx['work']:
                 for rr_set_item in work_item['DNS']['A']['rrset']:
                     print(work_item['domain'], rr_set_item['value'])
 
-                    if rr_set_item['value'] in tcp_probe_cache:
-                        tcp_probe = tcp_probe_cache[rr_set_item['value']]
-                    else:
-                        tcp_probe = oscarlib.tcp_probe_range(rr_set_item['value'], [80, 443, 25])
-                        tcp_probe_cache[rr_set_item['value']] = tcp_probe
-
-                    rr_set_item['tcp_probe'] = tcp_probe
+                    # TCP probe, after check on cache
+                    rr_set_item['tcp_probe'] = oscarlib.tcp_probe_range(rr_set_item['value'], [80, 443, 25])
 
                     # Results from A check on tcp_probe, next is port 80 and 443 walks...
                     print(work_item['domain'], "=>", 'A', "=>", rr_set_item['value'], "=>", rr_set_item['tcp_probe'])
+
+                    # Probe for HTTP
+                    if rr_set_item['tcp_probe']['80'] == True:
+                        rr_set_item['http_probe'] = {}
+
+                        base_A_endpoint = 'http://' + work_item['domain']
+                        r = oscarlib.http_probe(base_A_endpoint)
+                        s = oscarlib.http_probe_extract_recursions(r)
+
+                        rr_set_item['http_probe']['base_A_endpoint'] = base_A_endpoint
+                        rr_set_item['http_probe']['base_A_result'] = r
+                        rr_set_item['http_probe']['base_A_recursion'] = s
+                        print(base_A_endpoint, "->", s)
+
+                    # Probe for HTTPS
+                    if rr_set_item['tcp_probe']['443'] == True:
+                        rr_set_item['https_probe'] = {}
+
+                        base_A_endpoint = 'https://' + work_item['domain']
+                        r = oscarlib.http_probe(base_A_endpoint)
+                        s = oscarlib.http_probe_extract_recursions(r)
+
+                        rr_set_item['https_probe']['base_A_endpoint'] = base_A_endpoint
+                        rr_set_item['https_probe']['base_A_result'] = r
+                        rr_set_item['https_probe']['base_A_recursion'] = s
+                        print(base_A_endpoint, "->", s)
+
 
 
             # Check TCP connectivity on MX
@@ -154,30 +176,25 @@ for work_item in ctx['work']:
                             print(work_item['domain'], "MX", rr_set_item['value'], "MX => A", rr_set_item_inner_mx_host['value'])
 
                             # TCP probe, after check on cache
-                            if rr_set_item_inner_mx_host['value'] in tcp_probe_cache:
-                                tcp_probe = tcp_probe_cache[rr_set_item_inner_mx_host['value']]
-                            else:
-                                tcp_probe = oscarlib.tcp_probe_range(rr_set_item_inner_mx_host['value'], [80, 443, 25])
-                                tcp_probe_cache[rr_set_item_inner_mx_host['value']] = tcp_probe
-
-                            rr_set_item_inner_mx_host['tcp_probe'] = tcp_probe
+                            rr_set_item_inner_mx_host['tcp_probe'] = oscarlib.tcp_probe_range(rr_set_item_inner_mx_host['value'], [80, 443, 25])
 
                             # Results from MX's A's check on tcp_probe, next is port 80 and 443 walks...
                             print(work_item['domain'], "MX", rr_set_item['value'], "MX => A", rr_set_item_inner_mx_host['value'], "=>", rr_set_item_inner_mx_host['tcp_probe'])
+
+
     #                        sys.exit(1)
+                #            if tcp_probe['80'] == True:
+                #                r = oscarlib.http_probe('http://' + i['fqdn'])
+                #                s = oscarlib.http_probe_extract_recursions(r)
+                #
+                #                i['first_A_base_http_probe']           = r
+                #                i['first_A_base_http_probe_endpoint']  = 'http://' + i['fqdn']
+                #                i['first_A_base_http_probe_recursion'] = s
+                #
+                #            if tcp_probe['443'] == True:
+                #                r = oscarlib.https_probe('https://' + i['fqdn'])
+                #                s = oscarlib.https_probe_extract_recursions(r)
 
-
-
-#                    if rr_set_item['value'] in tcp_probe_cache:
-#                        tcp_probe = tcp_probe_cache[rr_set_item['value']]
-#                    else:
-#                        tcp_probe = oscarlib.tcp_probe_range(rr_set_item['value'], [80, 443, 25])
-#                        tcp_probe_cache[rr_set_item['value']] = tcp_probe
-#
-#                    rr_set_item['tcp_probe'] = tcp_probe
-#
-#                for rr_set_item in work_item['DNS']['MX']['rrset']:
-#                    print(work_item['domain'], "=>", 'MX', "=>", rr_set_item['value'], "=>", rr_set_item['tcp_probe'])
 
 
 #for work_item in ctx['work']:
@@ -212,7 +229,7 @@ for work_item in ctx['work']:
 #WHOIS
 
 
-sys.exit(1)
+sys.exit(0)
 
 
 

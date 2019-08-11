@@ -271,7 +271,10 @@ def http_probe(url, recurse=1):
 
 
     try:
+        # Disable warnings - because I also want to fetch insecure certificates
         requests.packages.urllib3.disable_warnings()
+        urllib3.disable_warnings()
+
         r = requests.get(results['url'], allow_redirects=False, timeout=5, verify=False)
         results['status_code'] = r.status_code
 
@@ -394,7 +397,14 @@ def tcp_probe_dict(d):
     d['port_open'] = tcp_probe(d['ipaddr'], d['portnum'], d['timeout'])
     return d
 
+
+# TCP Probe cache
+tcp_probe_cache = {}
+
 def tcp_probe_range(ipaddr, portnums=[21,22,23,25,80,110,143,389,443,631,993,995,8080], timeout=3):
+    # Check cache first
+    if ipaddr in tcp_probe_cache:
+        return tcp_probe_cache[ipaddr]
 
     # Non threaded
     # res = {}
@@ -417,6 +427,9 @@ def tcp_probe_range(ipaddr, portnums=[21,22,23,25,80,110,143,389,443,631,993,995
     for r in results:
         res[str(r['portnum'])] = r['port_open']
 
+
+    # Store into cache
+    tcp_probe_cache[ipaddr] = res
     return res
 
 
