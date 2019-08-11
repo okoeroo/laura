@@ -814,6 +814,10 @@ def ct_certspotter_search_domain_for_more_hostnames(base_fqdn, scopecreep, apike
     return results
 
 def dns_resolve_r_type(fqdn, r_type):
+    # Clean the input and remove a trailing dot
+    if fqdn[-1:] == ".":
+        fqdn = fqdn[:-1]
+
     ### DNS Resolve FQDN with resource type
     answers = None
     try:

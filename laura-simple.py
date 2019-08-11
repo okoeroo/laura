@@ -107,14 +107,27 @@ for work_item in ctx['work']:
 
         # Got an error?
         if work_item['DNS']['NS']['error'] == 'NOERROR':
+            # Fetch A
             work_item['DNS']['A']    = oscarlib.dns_resolve_r_type(work_item['domain'], 'A')
             print(work_item['domain'], 'A', work_item['DNS']['A']['error'])
 
+            # Fetch AAAA
             work_item['DNS']['AAAA'] = oscarlib.dns_resolve_r_type(work_item['domain'], 'AAAA')
             print(work_item['domain'], 'AAAA', work_item['DNS']['AAAA']['error'])
 
+            # Fetch MX
             work_item['DNS']['MX'] = oscarlib.dns_resolve_r_type(work_item['domain'], 'MX')
             print(work_item['domain'], 'MX', work_item['DNS']['MX']['error'])
+
+            # Check if there is an MX record
+            if work_item['DNS']['MX']['error'] == 'NOERROR':
+                # Walk rrset and resolve an A and AAAA for the MX host
+                for rr_set_item in work_item['DNS']['MX']['rrset']:
+                    rr_set_item['mx_host_resolve_A']    = oscarlib.dns_resolve_r_type(rr_set_item['mx_host'], 'A')
+                    print(work_item['domain'], 'MX', "=>", rr_set_item['mx_host'], "=>", rr_set_item['mx_host_resolve_A']['error'])
+                    ### Can't work with IPv6
+                    # rr_set_item['mx_host_resolve_AAAA'] = oscarlib.dns_resolve_r_type(rr_set_item['mx_host'], 'AAAA')
+
 
             # Check TCP connectivity on A
             if work_item['DNS']['A']['error'] == 'NOERROR':
@@ -129,18 +142,32 @@ for work_item in ctx['work']:
 
                     rr_set_item['tcp_probe'] = tcp_probe
 
-                # Results from A check on tcp_probe, next is port 80 and 443 walks...
-                for rr_set_item in work_item['DNS']['A']['rrset']:
+                    # Results from A check on tcp_probe, next is port 80 and 443 walks...
                     print(work_item['domain'], "=>", 'A', "=>", rr_set_item['value'], "=>", rr_set_item['tcp_probe'])
 
-            # Check TCP connectivity on AAAA... but I don't have IPv6...
 
             # Check TCP connectivity on MX
-#            Must extract MX to A records, then probe them
-#            if work_item['DNS']['MX']['error'] == 'NOERROR':
-#                for rr_set_item in work_item['DNS']['MX']['rrset']:
-#                    print(work_item['domain'], rr_set_item['value'])
-#
+            if work_item['DNS']['MX']['error'] == 'NOERROR':
+                for rr_set_item in work_item['DNS']['MX']['rrset']:
+                    if rr_set_item['mx_host_resolve_A']['error'] == 'NOERROR':
+                        for rr_set_item_inner_mx_host in rr_set_item['mx_host_resolve_A']['rrset']:
+                            print(work_item['domain'], "MX", rr_set_item['value'], "MX => A", rr_set_item_inner_mx_host['value'])
+
+                            # TCP probe, after check on cache
+                            if rr_set_item_inner_mx_host['value'] in tcp_probe_cache:
+                                tcp_probe = tcp_probe_cache[rr_set_item_inner_mx_host['value']]
+                            else:
+                                tcp_probe = oscarlib.tcp_probe_range(rr_set_item_inner_mx_host['value'], [80, 443, 25])
+                                tcp_probe_cache[rr_set_item_inner_mx_host['value']] = tcp_probe
+
+                            rr_set_item_inner_mx_host['tcp_probe'] = tcp_probe
+
+                            # Results from MX's A's check on tcp_probe, next is port 80 and 443 walks...
+                            print(work_item['domain'], "MX", rr_set_item['value'], "MX => A", rr_set_item_inner_mx_host['value'], "=>", rr_set_item_inner_mx_host['tcp_probe'])
+    #                        sys.exit(1)
+
+
+
 #                    if rr_set_item['value'] in tcp_probe_cache:
 #                        tcp_probe = tcp_probe_cache[rr_set_item['value']]
 #                    else:
