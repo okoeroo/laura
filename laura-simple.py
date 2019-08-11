@@ -73,9 +73,6 @@ ctx['input_quote'] = args.input_quote
 ctx['output_file'] = args.output
 
 
-# TCP Probe cache
-tcp_probe_cache = {}
-
 
 # Load CSV file and list the column into ctx['input_csv_selection']
 oscarlib.load_csv_file(ctx)
@@ -120,6 +117,10 @@ for work_item in ctx['work']:
             # Fetch MX
             work_item['DNS']['MX'] = oscarlib.dns_resolve_r_type(work_item['domain'], 'MX')
             print(work_item['domain'], 'MX', work_item['DNS']['MX']['error'])
+
+            # Fetch TXT
+            work_item['DNS']['TXT']    = oscarlib.dns_resolve_r_type(work_item['domain'], 'TXT')
+            print(work_item['domain'], 'TXT', work_item['DNS']['TXT']['error'])
 
             # Check if there is an MX record
             if work_item['DNS']['MX']['error'] == 'NOERROR':
@@ -188,49 +189,6 @@ for work_item in ctx['work']:
                             print(work_item['domain'], "MX", rr_set_item['value'], "MX => A", rr_set_item_inner_mx_host['value'], "=>", rr_set_item_inner_mx_host['tcp_probe'])
 
 
-    #                        sys.exit(1)
-                #            if tcp_probe['80'] == True:
-                #                r = oscarlib.http_probe('http://' + i['fqdn'])
-                #                s = oscarlib.http_probe_extract_recursions(r)
-                #
-                #                i['first_A_base_http_probe']           = r
-                #                i['first_A_base_http_probe_endpoint']  = 'http://' + i['fqdn']
-                #                i['first_A_base_http_probe_recursion'] = s
-                #
-                #            if tcp_probe['443'] == True:
-                #                r = oscarlib.https_probe('https://' + i['fqdn'])
-                #                s = oscarlib.https_probe_extract_recursions(r)
-
-
-
-#for work_item in ctx['work']:
-#    # Record DNS stuff
-#    print(work_item['domain'], work_item['DNS']['SOA'])
-
-#                tcp_probe_range
-#                for rr_res in work_item['DNS']['A'][
-#                oscarlib.tcp_probe_range
-#
-#            tcp_probe = oscarlib.tcp_probe_range(i['first_A_base'])
-#            i['first_A_base_tcp_probe'] = tcp_probe
-#            print(tcp_probe)
-#
-#            if tcp_probe['80'] == True:
-#                r = oscarlib.http_probe('http://' + i['fqdn'])
-#                s = oscarlib.http_probe_extract_recursions(r)
-#
-#                i['first_A_base_http_probe']           = r
-#                i['first_A_base_http_probe_endpoint']  = 'http://' + i['fqdn']
-#                i['first_A_base_http_probe_recursion'] = s
-#
-#            if tcp_probe['443'] == True:
-#                r = oscarlib.https_probe('https://' + i['fqdn'])
-#                s = oscarlib.https_probe_extract_recursions(r)
-#
-#
-#
-#tcp 80, 443
-#25
 #SPF DMARC
 #WHOIS
 
