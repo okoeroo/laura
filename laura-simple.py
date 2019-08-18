@@ -50,6 +50,10 @@ parser.add_argument("--input-quotechar",dest='input_quote',
                                         help="Input quote character, default is \"", 
                                         default='"',
                                         type=str)
+parser.add_argument("--limit",          dest='limit',
+                                        help="Limit the amount of rows to take in, default is unlimited", 
+                                        default=0,
+                                        type=int)
 
 parser.add_argument("--output",         dest='output', 
                                         help="Output list", 
@@ -70,12 +74,17 @@ ctx['input_file']  = args.input_file
 ctx['input_col']   = args.input_col
 ctx['input_del']   = args.input_del
 ctx['input_quote'] = args.input_quote
+ctx['limit']       = args.limit
 ctx['output_file'] = args.output
 
 
 
 # Load CSV file and list the column into ctx['input_csv_selection']
-oscarlib.load_csv_file(ctx)
+ctx['input_csv_selection'] = oscarlib.load_csv_file(ctx['input_file'],
+                                                    ctx['input_del'], 
+                                                    ctx['input_quote'], 
+                                                    ctx['input_col'],
+                                                    ctx['limit'])
 
 # Setup administration - make array of dict
 ctx['work'] = []

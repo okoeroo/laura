@@ -233,9 +233,13 @@ def http_probe_extract_recursions(r):
     l.append(r['url'])
     r1 = r
     while 'recurse' in r1:
-        r1 = r1['recurse']
-        l.append(r1['url'])
-        f = r1['url']
+        try:
+            r1 = r1['recurse']
+            l.append(r1['url'])
+            f = r1['url']
+        except:
+            pass
+            break
 
     d['source']     = r['url']
     d['recursions'] = " -> ".join(l)
@@ -248,6 +252,8 @@ def http_probe_extract_recursions(r):
     return d
 
 def http_probe(url, recurse=1):
+    MAX_RECURSIONS = 10
+
 #    expire_after = timedelta(minutes=15)
 #    requests_cache.install_cache('demo_cache1', expire_after=expire_after)
 
@@ -312,7 +318,7 @@ def http_probe(url, recurse=1):
                 results['location'] = r.headers['Location']
 
                 # Recurse
-                if recurse > 6:
+                if recurse > MAX_RECURSIONS:
                     results['recurse'] = "Maximum recursion reached"
                 else:
                     # Fix for relative locations
@@ -682,20 +688,20 @@ def load_file_into_array_of_dict(filename):
     return res
 
 ###
-# Input:  ctx must have: input_del, input_col, input_file
-# Output: ctx['input_csv_selection'] array
-def load_csv_file(ctx):
-    f = open(ctx['input_file'])
-    csv_obj = csv.reader(f, delimiter=ctx['input_del'], quotechar=ctx['input_quote'])
-
-    ctx['input_csv_obj'] = csv_obj
+def load_csv_file(csv_file, csv_del=";", csv_quote="\"", csv_col_num=0, limit=0):
+    f = open(csv_file)
+    csv_obj = csv.reader(f, delimiter=csv_del, quotechar=csv_quote)
 
     single_list = []
+    cnt = 0
     for row in csv_obj:
-        col_num = ctx['input_col']
-        single_list.append(row[ctx['input_col']])
+        if limit != 0 and limit == cnt:
+            break
 
-    ctx['input_csv_selection'] = single_list
+        single_list.append(row[csv_col_num])
+        cnt += 1
+
+    return single_list
 
 
 def load_static_domain_prefixes(base_fqdn):
