@@ -698,7 +698,8 @@ def load_csv_file(csv_file, csv_del=";", csv_quote="\"", csv_col_num=0, limit=0)
         if limit != 0 and limit == cnt:
             break
 
-        single_list.append(row[csv_col_num])
+        # Stripping BOM information explicitly
+        single_list.append(row[csv_col_num].lstrip('\ufeff'))
         cnt += 1
 
     return single_list

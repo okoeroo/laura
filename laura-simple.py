@@ -137,7 +137,7 @@ for work_item in ctx['work']:
                 for rr_set_item in work_item['DNS']['MX']['rrset']:
                     rr_set_item['mx_host_resolve_A']    = oscarlib.dns_resolve_r_type(rr_set_item['mx_host'], 'A')
                     print(work_item['domain'], 'MX', "=>", rr_set_item['mx_host'], "=>", rr_set_item['mx_host_resolve_A']['error'])
-                    ### Can't work with IPv6
+                    ### TODO: Can't work with IPv6
                     # rr_set_item['mx_host_resolve_AAAA'] = oscarlib.dns_resolve_r_type(rr_set_item['mx_host'], 'AAAA')
 
 
@@ -195,73 +195,87 @@ for work_item in ctx['work']:
                             print(work_item['domain'], "MX", rr_set_item['value'], "MX => A", rr_set_item_inner_mx_host['value'], "=>", rr_set_item_inner_mx_host['tcp_probe'])
 
 
-import json
-with open('data.json', 'w', encoding='utf-8') as f:
-    json.dump(ctx, f, ensure_ascii=False, indent=4)
-
-#WHOIS
-
-
-sys.exit(0)
-
 
 
 
 ### Write output
-csv_file = open(ctx['output_file'], mode='w')
+csv_file_output = open(ctx['output_file'], mode='w')
+ctx['input_csv_selection'] = oscarlib.load_csv_file(ctx['input_file'],
+                                                    ctx['input_del'], 
+                                                    ctx['input_quote'], 
+                                                    ctx['input_col'],
+                                                    ctx['limit'])
 
-fieldnames = ['fqdn', 'error', 'first_NS', 'first_A_base', 'first_A_base_tcp_probe', 'first_A_www_base', 'first_A_www_base_tcp_probe', 'first_MX_base', 'first_MX_base_tcp_probe']
-csv_writer = csv.writer(csv_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-#csv_writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+
+fieldnames = ['domain', 'SOA_error', 'NS', 'A', 'AAAA', 'MX', 'TXT']
+
+csv_writer = csv.writer(csv_file_output, delimiter=ctx['input_del'], quotechar=ctx['input_quote'])
 
 # Write header
 csv_writer.writerow(fieldnames)
 
-for i in domains_to_search_as_a_of_dict:
-    if 'error' not in i:
-        continue
+# Write work data
+for work_item in ctx['work']:
+    row = []
+    # Domain
+    row.append(work_item['domain'])
 
-    l = []
-    l.append(i['fqdn'])
-    l.append(i['error'])
+    # Skip the RRset, getting the error only is a feature
+    if 'SOA' in work_item['DNS']:
+        row.append(work_item['DNS']['SOA']['error'])
 
-    if 'first_NS' in i:
-        l.append(i['first_NS'])
-    else:
-        l.append("")
+    if 'NS' in work_item['DNS'] and 'rrset' in work_item['DNS']['NS']:
+        v = []
+        for i in work_item['DNS']['NS']['rrset']:
+            v.append(i['value'])
 
-    if 'first_A_base' in i:
-        l.append(i['first_A_base'])
-    else:
-        l.append("")
+        row.append(" ".join(sorted(v)))
 
-    if 'first_A_base_tcp_probe' in i:
-        l.append(i['first_A_base_tcp_probe'])
-    else:
-        l.append("")
+    if 'A' in work_item['DNS'] and 'rrset' in work_item['DNS']['A']:
+        v = []
+        for i in work_item['DNS']['A']['rrset']:
+            v.append(i['value'] + " " + str(i['tcp_probe']))
 
-    if 'first_A_www_base' in i:
-        l.append(i['first_A_www_base'])
-    else:
-        l.append("")
+        row.append(" ".join(sorted(v)))
 
-    if 'first_A_www_base_tcp_probe' in i:
-        l.append(i['first_A_www_base_tcp_probe'])
-    else:
-        l.append("")
+#        rr_set_item['http_probe']['base_A_recursion']
 
-    if 'first_MX_base' in i:
-        l.append(i['first_MX_base'])
-    else:
-        l.append("")
+    if 'AAAA' in work_item['DNS'] and 'rrset' in work_item['DNS']['AAAA']:
+        v = []
+        for i in work_item['DNS']['AAAA']['rrset']:
+            v.append(i['value'])
 
-    if 'first_MX_base_tcp_probe' in i:
-        l.append(i['first_MX_base_tcp_probe'])
-    else:
-        l.append("")
+        row.append(" ".join(sorted(v)))
+
+    if 'MX' in work_item['DNS'] and 'rrset' in work_item['DNS']['MX']:
+        v = []
+        for i in work_item['DNS']['MX']['rrset']:
+            v.append(i['value'])
+
+        row.append(" ".join(sorted(v)))
+
+    if 'TXT' in work_item['DNS'] and 'rrset' in work_item['DNS']['TXT']:
+        v = []
+        for i in work_item['DNS']['TXT']['rrset']:
+            v.append(i['value'])
+
+        row.append(" ".join(sorted(v)))
+
+    # Write the row
+    csv_writer.writerow(row)
 
 
-    csv_writer.writerow(l)
+print("Done CSV.")
+
+
+import json
+with open('data.json', 'w', encoding='utf-8') as f:
+    json.dump(ctx, f, indent=4)
+
+print("Done JSON.")
+#WHOIS
+
+
 
 
 print("Done.")
