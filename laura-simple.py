@@ -152,35 +152,6 @@ for work_item in ctx['work']:
                     # Results from A check on tcp_probe, next is port 80 and 443 walks...
                     print(work_item['domain'], "=>", 'A', "=>", rr_set_item['value'], "=>", rr_set_item['tcp_probe'])
 
-                    # Probe for HTTP
-                    if rr_set_item['tcp_probe']['80'] == True:
-                        rr_set_item['http_probe'] = {}
-
-                        base_A_endpoint = 'http://' + work_item['domain']
-                        r = oscarlib.http_probe(base_A_endpoint)
-                        s = oscarlib.http_probe_extract_recursions(r)
-
-                        rr_set_item['http_probe']['base_A_endpoint'] = base_A_endpoint
-                        rr_set_item['http_probe']['base_A_result'] = r
-                        rr_set_item['http_probe']['base_A_recursion'] = s
-
-                        print(base_A_endpoint, "->", s)
-
-                    # Probe for HTTPS
-                    if rr_set_item['tcp_probe']['443'] == True:
-                        rr_set_item['https_probe'] = {}
-
-                        base_A_endpoint = 'https://' + work_item['domain']
-                        r = oscarlib.http_probe(base_A_endpoint)
-                        s = oscarlib.http_probe_extract_recursions(r)
-
-                        rr_set_item['https_probe']['base_A_endpoint'] = base_A_endpoint
-                        rr_set_item['https_probe']['base_A_result'] = r
-                        rr_set_item['https_probe']['base_A_recursion'] = s
-
-                        print(base_A_endpoint, "->", s)
-
-
             # Check TCP connectivity on MX
             if work_item['DNS']['MX']['error'] == 'NOERROR':
                 for rr_set_item in work_item['DNS']['MX']['rrset']:
@@ -193,6 +164,44 @@ for work_item in ctx['work']:
 
                             # Results from MX's A's check on tcp_probe, next is port 80 and 443 walks...
                             print(work_item['domain'], "MX", rr_set_item['value'], "MX => A", rr_set_item_inner_mx_host['value'], "=>", rr_set_item_inner_mx_host['tcp_probe'])
+
+            # Probe for HTTP(S)
+            if work_item['DNS']['A']['error'] == 'NOERROR':
+                has_http  = False
+                has_https = False
+
+                for rr_set_item in work_item['DNS']['A']['rrset']:
+                    # Probe for HTTP
+                    if rr_set_item['tcp_probe']['80'] == True:
+                        has_http = True
+                    if rr_set_item['tcp_probe']['443'] == True:
+                        has_https = True
+
+                if has_http:
+                    work_item['DNS']['http_probe'] = {}
+
+                    base_A_endpoint = 'http://' + work_item['domain']
+                    r = oscarlib.http_probe(base_A_endpoint)
+                    s = oscarlib.http_probe_extract_recursions(r)
+
+                    work_item['DNS']['http_probe']['base_A_endpoint'] = base_A_endpoint
+                    work_item['DNS']['http_probe']['base_A_result'] = r
+                    work_item['DNS']['http_probe']['base_A_recursion'] = s
+
+                    print(base_A_endpoint, "->", work_item['DNS']['http_probe']['base_A_recursion'])
+
+                if has_https:
+                    work_item['DNS']['https_probe'] = {}
+
+                    base_A_endpoint = 'https://' + work_item['domain']
+                    r = oscarlib.http_probe(base_A_endpoint)
+                    s = oscarlib.http_probe_extract_recursions(r)
+
+                    work_item['DNS']['https_probe']['base_A_endpoint'] = base_A_endpoint
+                    work_item['DNS']['https_probe']['base_A_result'] = r
+                    work_item['DNS']['https_probe']['base_A_recursion'] = s
+
+                    print(base_A_endpoint, "->", work_item['DNS']['https_probe']['base_A_recursion'])
 
 
 
@@ -238,7 +247,23 @@ for work_item in ctx['work']:
 
         row.append(" ".join(sorted(v)))
 
-#        rr_set_item['http_probe']['base_A_recursion']
+    if 'http_probe' in work_item['DNS']:
+        row.append(work_item['DNS']['http_probe']['base_A_recursion']['source'])
+        row.append(work_item['DNS']['http_probe']['base_A_recursion']['destination'])
+        row.append(work_item['DNS']['http_probe']['base_A_recursion']['recursions'])
+    else:
+        row.append("")
+        row.append("")
+        row.append("")
+
+    if 'https_probe' in work_item['DNS']:
+        row.append(work_item['DNS']['https_probe']['base_A_recursion']['source'])
+        row.append(work_item['DNS']['https_probe']['base_A_recursion']['destination'])
+        row.append(work_item['DNS']['https_probe']['base_A_recursion']['recursions'])
+    else:
+        row.append("")
+        row.append("")
+        row.append("")
 
     if 'AAAA' in work_item['DNS'] and 'rrset' in work_item['DNS']['AAAA']:
         v = []
@@ -260,6 +285,7 @@ for work_item in ctx['work']:
             v.append(i['value'])
 
         row.append(" ".join(sorted(v)))
+
 
     # Write the row
     csv_writer.writerow(row)
