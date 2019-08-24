@@ -216,9 +216,23 @@ ctx['input_csv_selection'] = oscarlib.load_csv_file(ctx['input_file'],
                                                     ctx['limit'])
 
 
-fieldnames = ['domain', 'SOA_error', 'NS', 'A', 'AAAA', 'MX', 'TXT']
+fieldnames = [  'domain',
+                'SOA_error',
+                'Name servers',
+                'A',
+                'AAAA',
+                'http_probe source',
+                'http_probe destination',
+                'http_probe recusion',
+                'https_probe source',
+                'https_probe destination',
+                'https_probe recusion',
+                'MX',
+                'TXT']
 
-csv_writer = csv.writer(csv_file_output, delimiter=ctx['input_del'], quotechar=ctx['input_quote'])
+csv_writer = csv.writer(csv_file_output,
+                        delimiter=ctx['input_del'], 
+                        quotechar=ctx['input_quote'])
 
 # Write header
 csv_writer.writerow(fieldnames)
@@ -239,6 +253,8 @@ for work_item in ctx['work']:
             v.append(i['value'])
 
         row.append(" ".join(sorted(v)))
+    else:
+        row.append("")
 
     if 'A' in work_item['DNS'] and 'rrset' in work_item['DNS']['A']:
         v = []
@@ -246,6 +262,15 @@ for work_item in ctx['work']:
             v.append(i['value'] + " " + str(i['tcp_probe']))
 
         row.append(" ".join(sorted(v)))
+
+    if 'AAAA' in work_item['DNS'] and 'rrset' in work_item['DNS']['AAAA']:
+        v = []
+        for i in work_item['DNS']['AAAA']['rrset']:
+            v.append(i['value'])
+
+        row.append(" ".join(sorted(v)))
+    else:
+        row.append("")
 
     if 'http_probe' in work_item['DNS']:
         row.append(work_item['DNS']['http_probe']['base_A_recursion']['source'])
@@ -265,19 +290,14 @@ for work_item in ctx['work']:
         row.append("")
         row.append("")
 
-    if 'AAAA' in work_item['DNS'] and 'rrset' in work_item['DNS']['AAAA']:
-        v = []
-        for i in work_item['DNS']['AAAA']['rrset']:
-            v.append(i['value'])
-
-        row.append(" ".join(sorted(v)))
-
     if 'MX' in work_item['DNS'] and 'rrset' in work_item['DNS']['MX']:
         v = []
         for i in work_item['DNS']['MX']['rrset']:
             v.append(i['value'])
 
         row.append(" ".join(sorted(v)))
+    else:
+        row.append("")
 
     if 'TXT' in work_item['DNS'] and 'rrset' in work_item['DNS']['TXT']:
         v = []
@@ -285,6 +305,8 @@ for work_item in ctx['work']:
             v.append(i['value'])
 
         row.append(" ".join(sorted(v)))
+    else:
+        row.append("")
 
 
     # Write the row
